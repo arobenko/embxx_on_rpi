@@ -1,0 +1,3 @@
+[submodule "external/embxx"]
+	path = external/embxx
+	url = file:///mnt/data/Documents/Sync/Dropbox/Repos/P002-embxx.git
