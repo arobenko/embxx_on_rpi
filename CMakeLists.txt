@@ -29,6 +29,7 @@ set (CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
 
 set (STARTUP_LIB_NAME "startup")
 set (DEVICE_LIB_NAME "device")
+set (STDLIB_STUB_LIB_NAME "stdlib_stub")
 
 add_subdirectory (src)
 

@@ -27,10 +27,7 @@ SECTIONS {
 	.text : {
 		*(.text)
 	} > RAM
-
-	/*
-	* Next we put the data.
-	*/
+	
 	.data : {
 		*(.data)
 	} > RAM

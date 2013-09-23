@@ -1,5 +1,6 @@
 .extern __stack;
 .extern main
+.extern interruptHandler
 
 	.section .init
 	.globl _start
@@ -69,5 +70,8 @@ hang:
 	b hang
 
 irq_handler:
-    subs pc,r14,#4
+    push {r0,r1,r2,r3,r4,r5,r6,r7,lr}
+    bl interruptHandler
+    pop  {r0,r1,r2,r3,r4,r5,r6,r7,lr}
+    subs pc,lr,#4
 

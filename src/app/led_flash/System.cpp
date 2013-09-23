@@ -11,3 +11,8 @@ System::System()
       led_(gpio_)
 {
 }
+
+extern "C"
+void interruptHandler()
+{
+}

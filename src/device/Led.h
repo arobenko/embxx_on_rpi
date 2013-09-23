@@ -16,7 +16,6 @@ public:
 
     void on();
     void off();
-    bool isOn() const;
 
 private:
     Gpio& gpio_;

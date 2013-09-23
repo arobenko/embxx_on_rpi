@@ -30,11 +30,6 @@ void Led::off()
     gpio_.writePin(LedLineIdx, true);
 }
 
-bool Led::isOn() const
-{
-    return gpio_.readPin(LedLineIdx);
-}
-
 }  // namespace device
 
 

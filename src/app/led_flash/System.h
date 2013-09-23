@@ -23,6 +23,9 @@ private:
     device::Led led_;
 };
 
+extern "C"
+void interruptHandler();
+
 // Implementation
 
 inline

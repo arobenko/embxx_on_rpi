@@ -5,7 +5,7 @@ set (LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/raspberrypi.ld)
 function (link_app tgt)
 
     set_target_properties (${tgt}
-        PROPERTIES LINK_FLAGS "-T ${LINKER_SCRIPT}")
+        PROPERTIES LINK_FLAGS "-Wl,-Map,kernel.map -T ${LINKER_SCRIPT}")
     
     add_custom_command (
         TARGET ${tgt}
@@ -18,8 +18,12 @@ function (link_app tgt)
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.list
         COMMAND 
             ${CROSS_COMPILE_PREFIX}objdump -t $<TARGET_FILE:${tgt}> > 
-                                        $<TARGET_FILE_DIR:${tgt}>/kernel.syms)
-    
+                                        $<TARGET_FILE_DIR:${tgt}>/kernel.syms
+        COMMAND 
+            ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/image/${tgt}
+        COMMAND 
+            ${CMAKE_COMMAND} -E copy $<TARGET_FILE_DIR:${tgt}>/kernel.img ${CMAKE_BINARY_DIR}/image/${tgt})
+                                        
 endfunction ()
 
 #################################################################
@@ -38,4 +42,5 @@ ar_disable_rtti ()
 ar_disable_stdlib ()
 
 add_subdirectory (device)
+add_subdirectory (common)
 add_subdirectory (app)
