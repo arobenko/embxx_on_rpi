@@ -12,15 +12,15 @@ namespace device
 class Function
 {
 public:
-    enum FuncSel {
-        FuncSel_Input,  // b000
-        FuncSel_Output, // b001
-        FuncSel_Alt5,   // b010
-        FuncSel_Alt4,   // b011
-        FuncSel_Alt0,   // b100
-        FuncSel_Alt1,   // b101
-        FuncSel_Alt2,   // b110
-        FuncSel_Alt3,   // b111
+    enum class FuncSel {
+        Input,  // b000
+        Output, // b001
+        Alt5,   // b010
+        Alt4,   // b011
+        Alt0,   // b100
+        Alt1,   // b101
+        Alt2,   // b110
+        Alt3,   // b111
     };
 
     typedef unsigned PinIdxType;

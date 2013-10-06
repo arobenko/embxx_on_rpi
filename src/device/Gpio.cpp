@@ -22,8 +22,8 @@ const std::size_t NumOfWordsInBundle =
 
 const Function::FuncSel DirToFuncSel[Gpio::Dir_NumOfDirs] =
 {
-    Function::FuncSel_Input,
-    Function::FuncSel_Output
+    Function::FuncSel::Input,
+    Function::FuncSel::Output
 };
 
 struct WordsBundle

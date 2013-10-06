@@ -39,6 +39,7 @@ public:
     typedef THandler HandlerFunc;
     enum IrqId {
         IrqId_Timer,
+        IrqId_AuxInt,
         IrqId_NumOfIds // Must be last
     };
 
@@ -110,10 +111,18 @@ template <typename THandler>
 InterruptMgr<THandler>::InterruptMgr()
 {
     auto& timerIrq = irqs_[IrqId_Timer];
-    timerIrq.mask_ = 0x00000001;
+    timerIrq.mask_ = static_cast<EntryType>(1) << 0;
     timerIrq.pendingPtr_ = IrqBasicPending;
     timerIrq.enablePtr_ = IrqEnableBasic;
     timerIrq.disablePtr_ = IrqDisableBasic;
+    static_cast<void>(timerIrq);
+
+    auto& auxIrq = irqs_[IrqId_AuxInt];
+    auxIrq.mask_ = static_cast<EntryType>(1) << 29;
+    auxIrq.pendingPtr_ = IrqPending1;
+    auxIrq.enablePtr_ = IrqEnable1;
+    auxIrq.disablePtr_ = IrqDisable1;
+    static_cast<void>(auxIrq);
 }
 
 template <typename THandler>
@@ -162,14 +171,16 @@ void InterruptMgr<THandler>::handleInterrupt()
                 }
 
                 if (info.pendingPtr_ == IrqPending1) {
-                    if ((irqsPending1 & MaskPending1) != 0) {
+                    if (((irqsBasic & MaskPending1) != 0) &&
+                        ((info.mask_ & irqsPending1) != 0)) {
                         invoke = true;
                     }
                     break;
                 }
 
                 if (info.pendingPtr_ == IrqPending2) {
-                    if ((irqsPending2 & MaskPending2) == 0) {
+                    if (((irqsBasic & MaskPending2) == 0) &&
+                        ((info.mask_ & irqsPending2) != 0)) {
                         invoke = true;
                     }
                     break;
