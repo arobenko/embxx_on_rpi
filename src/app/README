@@ -1,0 +1,10 @@
+This directory contains core logic of various applications.
+
+Current applications are:
+1. led_flash - The most simple application that flashes on-board led in a busy
+        loop.
+2. led_timed_flash - This application flashes on-board led using arm timer
+        to measure time. It changes led's state every half a second.
+3. uart1_echo - This application configures and uses uart1 as its serial 
+        terminal. It echoes every character back. The configuration is:
+        Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.

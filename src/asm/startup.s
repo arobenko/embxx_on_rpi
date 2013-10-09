@@ -1,3 +1,20 @@
+;@
+;@ Copyright 2013 (C). Alex Robenko. All rights reserved.
+;@
+
+;@ This file is free software: you can redistribute it and/or modify
+;@ it under the terms of the GNU General Public License as published by
+;@ the Free Software Foundation, either version 3 of the License, or
+;@ (at your option) any later version.
+;@
+;@ This program is distributed in the hope that it will be useful,
+;@ but WITHOUT ANY WARRANTY; without even the implied warranty of
+;@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;@ GNU General Public License for more details.
+;@
+;@ You should have received a copy of the GNU General Public License
+;@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 .extern __stack;
 .extern main
 .extern interruptHandler
@@ -9,14 +26,14 @@ _start:
 
     ldr pc,reset_handler_ptr        ;@  Processor Reset handler
     ldr pc,undefined_handler_ptr    ;@  Undefined instruction handler
-    ldr pc,swi_handler_ptr          ;@  Software interrupt / TRAP (SVC)
+    ldr pc,swi_handler_ptr          ;@  Software interrupt
     ldr pc,prefetch_handler_ptr     ;@  Prefetch/abort handler.
     ldr pc,data_handler_ptr         ;@  Data abort handler/
-    ldr pc,unused_handler_ptr       ;@  -- Historical from 26-bit addressing ARMs
+    ldr pc,unused_handler_ptr       ;@
     ldr pc,irq_handler_ptr          ;@  IRQ handler
     ldr pc,fiq_handler_ptr          ;@  Fast interrupt handler.
 
-    ;@ Here we create an exception address table! This means that reset/hang/irq can be absolute addresses
+    ;@ Set the branch addresses
 reset_handler_ptr:      .word reset
 undefined_handler_ptr:  .word hang
 swi_handler_ptr:        .word hang
@@ -30,7 +47,6 @@ reset:
     ;@ Disable interrupts
     cpsid if
 
-    ;@ Assuming that base of the interrupt vector is at address 0x0000
     ;@ Copy interrupt vector to its place
     ldr r0,=_start
     mov r1,#0x0000
@@ -39,7 +55,7 @@ reset:
     ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
     stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
 
-    ;@  So the branches get the correct address we also need to copy our vector table!
+    ;@  Here we copy the branching addresses
     ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
     stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
 

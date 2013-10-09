@@ -2,6 +2,19 @@
 // Copyright 2013 (C). Alex Robenko. All rights reserved.
 //
 
+// This file is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "System.h"
 
 #include <functional>
@@ -48,6 +61,8 @@ void readChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
         {
             GASSERT(status == embxx::driver::ErrorStatus::Success);
             GASSERT(bytesRead == 1);
+            static_cast<void>(status);
+            static_cast<void>(bytesRead);
             writeChar(uartSocket, ch);
         });
 }
@@ -59,6 +74,8 @@ void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
         {
             GASSERT(status == embxx::driver::ErrorStatus::Success);
             GASSERT(bytesWritten == 1);
+            static_cast<void>(status);
+            static_cast<void>(bytesWritten);
             readChar(uartSocket, ch);
         });
 }
@@ -68,6 +85,8 @@ void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
 int main() {
     auto& system = System::instance();
     auto& led = system.led();
+
+    // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
     auto& uart = system.uart();

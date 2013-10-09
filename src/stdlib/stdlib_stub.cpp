@@ -15,34 +15,26 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#pragma once
 
-#include <cstddef>
-
-namespace device
+// For some reason placement new also requires delete.
+void operator delete(void*)
 {
+}
 
-class Function
+// Compiler requires this function when there are pure virtual functions
+extern "C" void __cxa_pure_virtual()
 {
-public:
-    enum class FuncSel {
-        Input,  // b000
-        Output, // b001
-        Alt5,   // b010
-        Alt4,   // b011
-        Alt0,   // b100
-        Alt1,   // b101
-        Alt2,   // b110
-        Alt3,   // b111
-    };
+}
 
-    typedef unsigned PinIdxType;
+// Compiler requires this function when there are static area objects that
+// require custom destructors
+extern "C" void __aeabi_atexit()
+{
+}
 
-    static const std::size_t NumOfLines = 54;
+// Compiler requires this symbol when there are static area objects that
+// require custom destructors
+void* __dso_handle = 0;
 
-    void configure(PinIdxType idx, FuncSel sel);
-};
-
-}  // namespace device
 
 

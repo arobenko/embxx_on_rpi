@@ -8,14 +8,6 @@ MEMORY
 ENTRY(_start)
 
 SECTIONS {
-    /*
-	 * Our init section allows us to place the bootstrap code at address 0x8000
-	 *
-	 * This is where the Graphics processor forces the ARM to start execution.
-	 * However the interrupt vector code remains at 0x0000, and so we must copy the correct
-	 * branch instructions to 0x0000 - 0x001C in order to get the processor to handle interrupts.
-	 *
-	 */
 	.start : {
 		KEEP(*(.init))
 	} > INIT_RAM = 0
@@ -41,7 +33,7 @@ SECTIONS {
 	} > RAM
 
 	/**
-	 *	Place HEAP here???
+	 *	Currently no heap
 	 **/
 
 	/**

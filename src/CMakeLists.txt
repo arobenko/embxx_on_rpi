@@ -11,13 +11,13 @@ function (link_app tgt)
         TARGET ${tgt}
         POST_BUILD
         COMMAND 
-            ${CROSS_COMPILE_PREFIX}objcopy $<TARGET_FILE:${tgt}> -O binary 
+            ${CROSS_COMPILE}objcopy $<TARGET_FILE:${tgt}> -O binary 
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.img
         COMMAND 
-            ${CROSS_COMPILE_PREFIX}objdump -D -S $<TARGET_FILE:${tgt}> > 
+            ${CROSS_COMPILE}objdump -D -S $<TARGET_FILE:${tgt}> > 
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.list
         COMMAND 
-            ${CROSS_COMPILE_PREFIX}objdump -t $<TARGET_FILE:${tgt}> > 
+            ${CROSS_COMPILE}objdump -t $<TARGET_FILE:${tgt}> > 
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.syms
         COMMAND 
             ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/image/${tgt}
@@ -42,5 +42,5 @@ ar_disable_rtti ()
 ar_disable_stdlib ()
 
 add_subdirectory (device)
-add_subdirectory (common)
+add_subdirectory (stdlib)
 add_subdirectory (app)

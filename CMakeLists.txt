@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project ("rpi-embxx")
+project ("embxx_on_rpi")
 
 set (EXTERNALS_DIR "${CMAKE_SOURCE_DIR}/external")
 find_package (Git REQUIRED)
@@ -15,10 +15,13 @@ ar_add_cpp11_support ()
 ar_set_default_compiler_options ()
 
 set (CMAKE_SYSTEM_NAME "RPi")
-set (CROSS_COMPILE_PREFIX "arm-none-eabi-")
-set (CMAKE_C_COMPILER "${CROSS_COMPILE_PREFIX}gcc")
-set (CMAKE_CXX_COMPILER "${CROSS_COMPILE_PREFIX}g++")
-set (CMAKE_ASM_COMPILER "${CROSS_COMPILE_PREFIX}as")
+if ("${CROSS_COMPILE}" STREQUAL "")
+    set (CROSS_COMPILE "arm-none-eabi-")
+endif()
+
+set (CMAKE_C_COMPILER "${CROSS_COMPILE}gcc")
+set (CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+set (CMAKE_ASM_COMPILER "${CROSS_COMPILE}as")
 
 # for libraries and headers in the target directories
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)

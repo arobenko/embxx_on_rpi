@@ -1,0 +1,36 @@
+Overview
+-------------------
+This main purpose of this project is to test embxx library and demonstrate its 
+usage on Raspberry Pi as bare metal platform.
+
+What you need
+-------------------
+1. Git
+2. CMake
+3. Cross compiling gcc v4.7 toolchain or greater
+
+How to compile
+-------------------
+1. Make a build directory and cd there:
+   > mkdir <embxx_on_rpi_dir>/build
+   > cd <embxx_on_rpi_dir>/build
+2. Generate makefiles using CMake while defining CROSS_COMPILE prefix:
+   > cmake -DCROSS_COMPILE=/opt/arm-none-eabi-2013.05/bin/arm-none-eabi- ..
+   
+   If CROSS_COMPILE prefix is not defined "arm-none-eabi-" is used and directory 
+   containing all the toolchain utilities must be PATH environment variable.
+   > cmake ..
+   
+   Please note that default cmake build type is similar to Debug mode but 
+   without any debug simbols in produced binaries. To change the default
+   build type please use CMAKE_BUILD_TYPE definition when using cmake utility:
+   > cmake -DCMAKE_BUILD_TYPE=Release -DCROSS_COMPILE=/opt/arm-none-eabi-2013.05/bin/arm-none-eabi- ..
+   
+   Please refer to CMake documentation for details about its build types
+3. Build the binaries:
+   > make
+   
+   For the verbose make output use VERBOSE=1 environment variable:
+   > VERBOSE=1 make
+4. The image of every compiled application will be:
+   <embxx_build_dir>/image/<app_name>/kernel.img
