@@ -1,0 +1,3 @@
+[submodule "external/embxx"]
+	path = external/embxx
+	url = git://github.com/arobenko/embxx.git

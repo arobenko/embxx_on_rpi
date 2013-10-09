@@ -1,0 +1,9 @@
+This directory contains sources of this project. See README in "app" directory
+for details of what each application does.
+
+The existing directories are:
+app - directory of the various applications
+asm - common startup (assembler) code for all the applications
+device - low level device (peripheral) control classes
+stdlib - stub for some stdlib functions. Currently all the applications are 
+         compiled without standard library.
