@@ -1,5 +1,5 @@
-function (bin_led_timed_flash)
-    set (name "led_timed_flash")
+function (bin_led_flash)
+    set (name "01_led_flash")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
@@ -17,4 +17,4 @@ endfunction ()
 
 #################################################################
 
-bin_led_timed_flash()
+bin_led_flash()

@@ -1,3 +1,2 @@
-add_subdirectory (led_flash)
-add_subdirectory (led_timed_flash)
-add_subdirectory (uart1_echo)
+add_subdirectory (01_led_flash)
+add_subdirectory (02_uart1_echo)

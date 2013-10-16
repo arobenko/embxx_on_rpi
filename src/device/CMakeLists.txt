@@ -3,8 +3,7 @@ function (lib_device)
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/Function.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Gpio.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Led.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/Gpio.cpp")
 
     add_library(${name} STATIC ${src})
 endfunction ()

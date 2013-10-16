@@ -24,15 +24,16 @@ System& System::instance()
 }
 
 System::System()
-    : timerDevice_(interruptMgr_),
-      gpio_(func_),
-      led_(gpio_),
-      timerMgr_(timerDevice_, el_)
+    : gpio_(func_),
+      uart_(interruptMgr_, func_, SysClockFreq),
+      uartSocket_(uart_, el_),
+      led_(gpio_)
 {
 }
 
 extern "C"
 void interruptHandler()
 {
+//    System::instance().led().on();
     System::instance().interruptMgr().handleInterrupt();
 }
