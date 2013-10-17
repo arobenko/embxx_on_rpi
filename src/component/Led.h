@@ -23,14 +23,15 @@ namespace component
 {
 
 /// @brief Led definition class.
+/// @tparam TGpio Gpio class
 /// @tparam TOnState Boolean value stating the value of GPIO line to set
 ///         led on.
-template <bool TOnState>
+template <typename TGpio, bool TOnState>
 class Led
 {
 public:
-    typedef device::Gpio Gpio;
-    typedef Gpio::PinIdxType PinIdxType;
+    typedef TGpio Gpio;
+    typedef typename Gpio::PinIdxType PinIdxType;
     static const bool OnState = TOnState;
 
     Led(Gpio& gpio, PinIdxType pidIdx, bool isOn = false);
@@ -46,8 +47,8 @@ private:
 };
 
 // Implementation
-template <bool TOnState>
-Led<TOnState>::Led(Gpio& gpio, PinIdxType pin, bool isOn)
+template <typename TGpio, bool TOnState>
+Led<TGpio, TOnState>::Led(Gpio& gpio, PinIdxType pin, bool isOn)
     : gpio_(gpio),
       pin_(pin),
       isOn_(isOn)
@@ -55,22 +56,22 @@ Led<TOnState>::Led(Gpio& gpio, PinIdxType pin, bool isOn)
     gpio_.configDir(pin, Gpio::Dir_Output);
 }
 
-template <bool TOnState>
-void Led<TOnState>::on()
+template <typename TGpio, bool TOnState>
+void Led<TGpio, TOnState>::on()
 {
     gpio_.writePin(pin_, OnState);
     isOn_ = true;
 }
 
-template <bool TOnState>
-void Led<TOnState>::off()
+template <typename TGpio, bool TOnState>
+void Led<TGpio, TOnState>::off()
 {
     gpio_.writePin(pin_, !OnState);
     isOn_ = false;
 }
 
-template <bool TOnState>
-bool Led<TOnState>::isOn() const
+template <typename TGpio, bool TOnState>
+bool Led<TGpio, TOnState>::isOn() const
 {
     return isOn_;
 }

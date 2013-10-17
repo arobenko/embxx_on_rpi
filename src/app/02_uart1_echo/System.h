@@ -40,11 +40,13 @@ public:
 
     typedef device::InterruptMgr<> InterruptMgr;
 
+    typedef device::Gpio<InterruptMgr> Gpio;
+
     typedef device::Uart1<InterruptMgr> Uart;
 
     typedef embxx::driver::Character<Uart, EventLoop> UartSocket;
 
-    typedef component::OnBoardLed Led;
+    typedef component::OnBoardLed<Gpio> Led;
 
     static System& instance();
 
@@ -62,7 +64,7 @@ private:
     // Devices
     InterruptMgr interruptMgr_;
     device::Function func_;
-    device::Gpio gpio_;
+    Gpio gpio_;
     Uart uart_;
 
     // Drivers

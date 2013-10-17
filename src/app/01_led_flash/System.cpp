@@ -25,7 +25,7 @@ System& System::instance()
 
 System::System()
     : timerDevice_(interruptMgr_),
-      gpio_(func_),
+      gpio_(interruptMgr_, func_),
       timerMgr_(timerDevice_, el_),
       led_(gpio_)
 {

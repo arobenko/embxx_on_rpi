@@ -24,10 +24,14 @@
 namespace component
 {
 
-class OnBoardLed : public Led<false>
+template <typename TGpio>
+class OnBoardLed : public Led<TGpio, false>
 {
-    typedef Led<false> Base;
+    typedef Led<TGpio, false> Base;
 public:
+    typedef typename Base::Gpio Gpio;
+    typedef typename Base::PinIdxType PinIdxType;
+
     OnBoardLed(Gpio& gpio)
         : Base(gpio, OnBoardLedPinIdx, InitiallyOn)
     {

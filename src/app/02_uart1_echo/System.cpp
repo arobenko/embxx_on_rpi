@@ -24,7 +24,7 @@ System& System::instance()
 }
 
 System::System()
-    : gpio_(func_),
+    : gpio_(interruptMgr_, func_),
       uart_(interruptMgr_, func_, SysClockFreq),
       uartSocket_(uart_, el_),
       led_(gpio_)

@@ -38,6 +38,7 @@ public:
         device::WaitCond> EventLoop;
 
     typedef device::InterruptMgr<> InterruptMgr;
+    typedef device::Gpio<InterruptMgr> Gpio;
     typedef device::Timer<InterruptMgr> TimerDevice;
 
     static const std::size_t NumOfTimers = 10;
@@ -47,7 +48,7 @@ public:
         NumOfTimers,
         embxx::util::StaticFunction<void (embxx::driver::ErrorStatus), 32> > TimerMgr;
 
-    typedef component::OnBoardLed Led;
+    typedef component::OnBoardLed<Gpio> Led;
 
 
     static System& instance();
@@ -68,7 +69,7 @@ private:
     InterruptMgr interruptMgr_;
     TimerDevice timerDevice_;
     device::Function func_;
-    device::Gpio gpio_;
+    Gpio gpio_;
 
     // Drivers
     TimerMgr timerMgr_;
