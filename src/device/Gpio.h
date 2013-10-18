@@ -34,7 +34,7 @@ namespace device
 
 template <typename TInterruptMgr,
           std::size_t TMaxNumOfHandlers = 0,
-          typename THandler = embxx::util::StaticFunction<void ()> >
+          typename THandler = embxx::util::StaticFunction<void (bool)> >
 class Gpio
 {
 public:
@@ -123,7 +123,7 @@ private:
         reinterpret_cast<WordsBundle*>(0x2020001C);
     static constexpr WordsBundle* pGPCLR =
         reinterpret_cast<WordsBundle*>(0x20200028);
-    static constexpr WordsBundle* pGPLEV =
+    static constexpr const WordsBundle* pGPLEV =
         reinterpret_cast<const WordsBundle*>(0x20200034);
     static constexpr WordsBundle* pGPEDS =
         reinterpret_cast<WordsBundle*>(0x20200040);
@@ -345,7 +345,7 @@ void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::interruptHandler()
         auto* entry = idxToEntry(iter->pinIdx_, &bundle);
         auto mask = idxToEntryBitmask(iter->pinIdx_);
         if (((*entry & mask) != 0) && (iter->handler_)) {
-            iter->handler_();
+            iter->handler_(readPin(iter->pinIdx_));
         }
     }
 }

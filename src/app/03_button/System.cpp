@@ -26,8 +26,13 @@ System& System::instance()
 System::System()
     : gpio_(interruptMgr_, func_),
       uart_(interruptMgr_, func_, SysClockFreq),
-      uartSocket_(uart_, el_),
-      led_(gpio_)
+      timerDevice_(interruptMgr_),
+      buttonDriver_(gpio_, el_),
+      uartDriver_(uart_, el_),
+      timerMgr_(timerDevice_, el_),
+      uartSocket_(uartDriver_),
+      led_(gpio_),
+      button_(buttonDriver_, ButtonPin)
 {
 }
 

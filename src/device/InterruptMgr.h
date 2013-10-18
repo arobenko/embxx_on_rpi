@@ -208,7 +208,7 @@ void InterruptMgr<THandler>::handleInterrupt()
                 }
 
                 if (info.pendingPtr_ == IrqPending2) {
-                    if (((irqsBasic & MaskPending2) == 0) &&
+                    if (((irqsBasic & MaskPending2) != 0) &&
                         ((info.mask_ & irqsPending2) != 0)) {
                         invoke = true;
                     }

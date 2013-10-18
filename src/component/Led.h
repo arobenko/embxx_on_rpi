@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include "device/Gpio.h"
-
 namespace component
 {
 

@@ -6,3 +6,8 @@ Current applications are:
 02_uart1_echo - This application configures and uses uart1 as its serial 
         terminal. It echoes every character back. The configuration is:
         Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.
+03_button - This application responds to button presses and releases. Every
+        button press "Button Pressed" and every button release "Button Released"
+        strings are sent asynchronously to UART1. In addition to this, every 
+        button press will activate on-board LED which will be on for exactly 
+        1 second after the last press.  
