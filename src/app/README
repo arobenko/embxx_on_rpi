@@ -1,14 +1,22 @@
 This directory contains core logic of various applications.
 
 Current applications are:
+
 01_led_flash - This application flashes on-board led using arm timer
         to measure time. It changes led's state every half a second.
+        
 02_uart1_echo - This application configures and uses uart1 as its serial 
         terminal. It echoes every character back. The configuration is:
         Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.
+        
 03_button - This application responds to button presses and releases. Every
         button press "Button Pressed" and every button release "Button Released"
         strings are sent asynchronously to UART1. In addition to this, every 
         button press will activate on-board LED which will be on for exactly 
         1 second after the last press. The UART1 configuration is:
         Baud: 9600; Parity: None; Stop bits: 1; Flow control: off.
+        
+04_uart1_logging - This application configures and uses uart1 as its serial 
+        output device. It uses output stream object to log the running counter
+        value in both decimal and hexadecimal formats. The uart configuration 
+        is: Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.
