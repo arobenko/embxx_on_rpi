@@ -15,25 +15,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#pragma once
+#include "System.h"
 
-#include "Gpio.h"
-
-namespace device
+System& System::instance()
 {
+    static System system;
+    return system;
+}
 
-class Led
+System::System()
+    : gpio_(interruptMgr_, func_),
+      uart_(interruptMgr_, func_, SysClockFreq),
+      timerDevice_(interruptMgr_),
+      buttonDriver_(gpio_, el_),
+      uartDriver_(uart_, el_),
+      timerMgr_(timerDevice_, el_),
+      uartSocket_(uartDriver_),
+      led_(gpio_),
+      button_(buttonDriver_, ButtonPin)
 {
-public:
-    Led(Gpio& gpio);
+}
 
-    void on();
-    void off();
-
-private:
-    Gpio& gpio_;
-};
-
-}  // namespace device
-
-
+extern "C"
+void interruptHandler()
+{
+    System::instance().interruptMgr().handleInterrupt();
+}

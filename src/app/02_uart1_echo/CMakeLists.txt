@@ -1,5 +1,5 @@
 function (bin_uart1_echo)
-    set (name "uart1_echo")
+    set (name "02_uart1_echo")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"

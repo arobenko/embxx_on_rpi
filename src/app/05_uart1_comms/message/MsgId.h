@@ -15,24 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "System.h"
 
-System& System::instance()
-{
-    static System system;
-    return system;
-}
+#pragma once
 
-System::System()
-    : timerDevice_(interruptMgr_),
-      gpio_(func_),
-      led_(gpio_),
-      timerMgr_(timerDevice_, el_)
+namespace message
 {
-}
 
-extern "C"
-void interruptHandler()
-{
-    System::instance().interruptMgr().handleInterrupt();
-}
+enum MsgId {
+    MsgId_Heartbeat,
+    MsgId_ButtonStateChange,
+    MsgId_LedStateChange,
+    MsgId_LedStateCtrl
+};
+
+}  // namespace message

@@ -15,21 +15,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "System.h"
+#include <functional>
 
-System& System::instance()
-{
-    static System system;
-    return system;
-}
 
-System::System()
-    : gpio_(func_),
-      led_(gpio_)
+namespace std
 {
-}
 
-extern "C"
-void interruptHandler()
+namespace placeholders
 {
-}
+
+decltype(std::placeholders::_1) _1;
+
+}  // namespace placeholders
+
+}  // namespace std
+
+

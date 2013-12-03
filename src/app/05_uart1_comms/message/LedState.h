@@ -15,25 +15,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "System.h"
 
-System& System::instance()
-{
-    static System system;
-    return system;
-}
+#pragma once
 
-System::System()
-    : gpio_(func_),
-      led_(gpio_),
-      uart_(interruptMgr_, func_, SysClockFreq),
-      uartSocket_(uart_, el_)
+namespace message
 {
-}
 
-extern "C"
-void interruptHandler()
-{
-//    System::instance().led().on();
-    System::instance().interruptMgr().handleInterrupt();
-}
+enum class LedState {
+    Off,
+    On,
+    NumOfStates
+};
+
+}  // namespace message
+
+

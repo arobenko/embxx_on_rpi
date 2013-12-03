@@ -15,35 +15,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#pragma once
+#include "System.h"
 
-#include "device/Function.h"
-#include "device/Gpio.h"
-#include "device/Led.h"
-
-class System
+System& System::instance()
 {
-public:
-    static System& instance();
-
-    inline device::Led& led();
-
-private:
-    System();
-
-    device::Function func_;
-    device::Gpio gpio_;
-    device::Led led_;
-};
-
-extern "C"
-void interruptHandler();
-
-// Implementation
-
-inline
-device::Led& System::led()
-{
-    return led_;
+    static System system;
+    return system;
 }
 
+System::System()
+    : gpio_(interruptMgr_, func_),
+      uart_(interruptMgr_, func_, SysClockFreq),
+      uartSocket_(uart_, el_),
+      led_(gpio_)
+{
+}
+
+extern "C"
+void interruptHandler()
+{
+    System::instance().interruptMgr().handleInterrupt();
+}

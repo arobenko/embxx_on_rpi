@@ -18,14 +18,16 @@
 #pragma once
 
 #include "embxx/util/EventLoop.h"
-#include "embxx/driver/TimerMgr.h"
+#include "embxx/driver/Character.h"
 
 #include "device/Function.h"
 #include "device/Gpio.h"
-#include "device/Led.h"
 #include "device/InterruptMgr.h"
 #include "device/Timer.h"
 #include "device/EventLoopDevices.h"
+#include "device/Uart1.h"
+
+#include "component/OnBoardLed.h"
 
 class System
 {
@@ -37,36 +39,41 @@ public:
         device::WaitCond> EventLoop;
 
     typedef device::InterruptMgr<> InterruptMgr;
-    typedef device::Timer<InterruptMgr> TimerDevice;
 
-    static const std::size_t NumOfTimers = 10;
-    typedef embxx::driver::TimerMgr<
-        TimerDevice,
-        EventLoop,
-        NumOfTimers,
-        embxx::util::StaticFunction<void (embxx::driver::ErrorStatus), 32> > TimerMgr;
+    typedef device::Gpio<InterruptMgr> Gpio;
 
+    typedef device::Uart1<InterruptMgr> Uart;
+
+    typedef embxx::driver::Character<Uart, EventLoop> UartSocket;
+
+    typedef component::OnBoardLed<Gpio> Led;
 
     static System& instance();
 
     inline EventLoop& eventLoop();
     inline InterruptMgr& interruptMgr();
-    inline TimerDevice& timerDevice();
-    inline device::Led& led();
-    inline TimerMgr& timerMgr();
-
+    inline Uart& uart();
+    inline UartSocket& uartSocket();
+    inline Led& led();
 
 private:
     System();
 
     EventLoop el_;
-    InterruptMgr interruptMgr_;
-    TimerDevice timerDevice_;
-    device::Function func_;
-    device::Gpio gpio_;
-    device::Led led_;
 
-    TimerMgr timerMgr_;
+    // Devices
+    InterruptMgr interruptMgr_;
+    device::Function func_;
+    Gpio gpio_;
+    Uart uart_;
+
+    // Drivers
+    UartSocket uartSocket_;
+
+    // Components
+    Led led_;
+
+    static const unsigned SysClockFreq = 250000000; // 250MHz
 };
 
 extern "C"
@@ -80,27 +87,25 @@ System::EventLoop& System::eventLoop()
     return el_;
 }
 
-inline
-System::InterruptMgr& System::interruptMgr()
+inline System::InterruptMgr& System::interruptMgr()
 {
     return interruptMgr_;
 }
 
 inline
-System::TimerDevice& System::timerDevice()
+System::Uart& System::uart()
 {
-    return timerDevice_;
+    return uart_;
 }
 
 inline
-device::Led& System::led()
+System::UartSocket& System::uartSocket()
+{
+    return uartSocket_;
+}
+
+inline
+System::Led& System::led()
 {
     return led_;
 }
-
-inline
-System::TimerMgr& System::timerMgr()
-{
-    return timerMgr_;
-}
-

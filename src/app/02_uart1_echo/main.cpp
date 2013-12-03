@@ -24,49 +24,11 @@
 namespace
 {
 
-const unsigned LedChangeStateTimeout = 500; // 1/2 second
-
-template <typename TTimer>
-void ledOff(
-    TTimer& timer,
-    device::Led& led);
-
-template <typename TTimer>
-void ledOn(
-    TTimer& timer,
-    device::Led& led)
-{
-    led.on();
-
-    timer.asyncWait(
-        LedChangeStateTimeout,
-        [&timer, &led](embxx::driver::ErrorStatus status)
-        {
-            static_cast<void>(status);
-            ledOff(timer, led);
-        });
-}
-
-template <typename TTimer>
-void ledOff(
-    TTimer& timer,
-    device::Led& led)
-{
-    led.off();
-
-    timer.asyncWait(
-        LedChangeStateTimeout,
-        [&timer, &led](embxx::driver::ErrorStatus status)
-        {
-            static_cast<void>(status);
-            ledOn(timer, led);
-        });
-}
-
 class LedOnAssert : public embxx::util::Assert
 {
 public:
-    LedOnAssert(device::Led& led)
+    typedef System::Led Led;
+    LedOnAssert(Led& led)
         : led_(led)
     {
     }
@@ -83,29 +45,64 @@ public:
         static_cast<void>(function);
 
         led_.on();
+        device::interrupt::disable();
         while (true) {;}
     }
 
 private:
-    device::Led& led_;
+    Led& led_;
 };
+
+void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch);
+
+void readChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
+{
+    uartSocket.asyncRead(&ch, 1,
+        [&uartSocket, &ch](embxx::driver::ErrorStatus status, std::size_t bytesRead)
+        {
+            GASSERT(status == embxx::driver::ErrorStatus::Success);
+            GASSERT(bytesRead == 1);
+            static_cast<void>(status);
+            static_cast<void>(bytesRead);
+            writeChar(uartSocket, ch);
+        });
+}
+
+void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
+{
+    uartSocket.asyncWrite(&ch, 1,
+        [&uartSocket, &ch](embxx::driver::ErrorStatus status, std::size_t bytesWritten)
+        {
+            GASSERT(status == embxx::driver::ErrorStatus::Success);
+            GASSERT(bytesWritten == 1);
+            static_cast<void>(status);
+            static_cast<void>(bytesWritten);
+            readChar(uartSocket, ch);
+        });
+}
 
 }  // namespace
 
 int main() {
     auto& system = System::instance();
     auto& led = system.led();
+
+    // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
-    auto& timerMgr = system.timerMgr();
-    auto timer = timerMgr.allocTimer();
-    GASSERT(timer.isValid());
+    auto& uart = system.uart();
+    uart.configBaud(115200);
+    uart.setReadEnabled(true);
+    uart.setWriteEnabled(true);
+
+    auto& uartSocket = system.uartSocket();
+    System::Uart::CharType ch = 0;
+    readChar(uartSocket, ch);
+
     device::interrupt::enable();
-
-    ledOff(timer, led);
-
     auto& el = system.eventLoop();
     el.run();
+
     GASSERT(0); // Mustn't exit
 	return 0;
 }

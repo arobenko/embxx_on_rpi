@@ -17,16 +17,27 @@
 
 #include "System.h"
 
-int main() {
-    auto& led = System::instance().led();
-    static_cast<void>(led);
+System& System::instance()
+{
+    static System system;
+    return system;
+}
 
-	while (true) {
-	    led.on();
-	    for (volatile int i = 0; i < 1000000; ++i) {}
-	    led.off();
-	    for (volatile int i = 0; i < 1000000; ++i) {}
-	}
+System::System()
+    : gpio_(interruptMgr_, func_),
+      uart_(interruptMgr_, func_, SysClockFreq),
+      timerDevice_(interruptMgr_),
+      uartDriver_(uart_, el_),
+      timerMgr_(timerDevice_, el_),
+      led_(gpio_),
+      buf_(uartDriver_),
+      stream_(buf_),
+      log_("\r\n", stream_)
+{
+}
 
-	return 0;
+extern "C"
+void interruptHandler()
+{
+    System::instance().interruptMgr().handleInterrupt();
 }

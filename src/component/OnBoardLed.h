@@ -15,34 +15,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+#pragma once
+
+
 #include "Led.h"
 
-namespace device
+namespace component
 {
 
-namespace
+template <typename TGpio>
+class OnBoardLed : public Led<TGpio, false>
 {
+    typedef Led<TGpio, false> Base;
+public:
+    typedef typename Base::Gpio Gpio;
+    typedef typename Base::PinIdxType PinIdxType;
 
-const Gpio::PinIdxType LedLineIdx = 16;
+    OnBoardLed(Gpio& gpio)
+        : Base(gpio, OnBoardLedPinIdx, InitiallyOn)
+    {
+    }
 
-}  // namespace
+private:
+    static const PinIdxType OnBoardLedPinIdx = 16;
+    static const bool InitiallyOn = false;
+};
 
-Led::Led(Gpio& gpio)
-    : gpio_(gpio)
-{
-    gpio_.configDir(LedLineIdx, Gpio::Dir_Output);
-}
-
-void Led::on()
-{
-    gpio_.writePin(LedLineIdx, false);
-}
-
-void Led::off()
-{
-    gpio_.writePin(LedLineIdx, true);
-}
-
-}  // namespace device
-
-
+}  // namespace component

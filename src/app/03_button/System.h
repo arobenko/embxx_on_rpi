@@ -19,14 +19,19 @@
 
 #include "embxx/util/EventLoop.h"
 #include "embxx/driver/Character.h"
+#include "embxx/driver/Generic.h"
+#include "embxx/driver/TimerMgr.h"
+#include "embxx/io/WriteQueue.h"
 
 #include "device/Function.h"
 #include "device/Gpio.h"
-#include "device/Led.h"
 #include "device/InterruptMgr.h"
 #include "device/Timer.h"
 #include "device/EventLoopDevices.h"
 #include "device/Uart1.h"
+
+#include "component/OnBoardLed.h"
+#include "component/Button.h"
 
 class System
 {
@@ -37,35 +42,61 @@ public:
         device::InterruptLock,
         device::WaitCond> EventLoop;
 
+    // Devices
     typedef device::InterruptMgr<> InterruptMgr;
-
+    typedef device::Gpio<InterruptMgr, 1U> Gpio;
     typedef device::Uart1<InterruptMgr> Uart;
+    typedef device::Timer<InterruptMgr> TimerDevice;
 
-    typedef embxx::driver::Character<Uart, EventLoop> UartSocket;
+    // Drivers
+    typedef embxx::driver::Generic<Gpio, EventLoop, void (bool)> ButtonDriver;
+    typedef embxx::driver::Character<Uart, EventLoop> UartDriver;
+    typedef embxx::driver::TimerMgr<
+            TimerDevice,
+            EventLoop,
+            1> TimerMgr;
+
+    // Components
+    typedef embxx::io::WriteQueue<UartDriver, 10> UartSocket;
+    typedef component::OnBoardLed<Gpio> Led;
+    typedef component::Button<ButtonDriver, false> Button;
 
     static System& instance();
 
     inline EventLoop& eventLoop();
     inline InterruptMgr& interruptMgr();
-    inline device::Led& led();
+    inline Gpio& gpio();
     inline Uart& uart();
     inline UartSocket& uartSocket();
-
+    inline Led& led();
+    inline Button& button();
+    inline TimerDevice& timerDevice();
+    inline TimerMgr& timerMgr();
 
 private:
     System();
 
     EventLoop el_;
+
+    // Devices
     InterruptMgr interruptMgr_;
     device::Function func_;
-    device::Gpio gpio_;
-    device::Led led_;
+    Gpio gpio_;
     Uart uart_;
+    TimerDevice timerDevice_;
 
+    // Drivers
+    ButtonDriver buttonDriver_;
+    UartDriver uartDriver_;
+    TimerMgr timerMgr_;
+
+    // Components
     UartSocket uartSocket_;
-
+    Led led_;
+    Button button_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
+    static const device::Function::PinIdxType ButtonPin = 23;
 };
 
 extern "C"
@@ -85,9 +116,9 @@ inline System::InterruptMgr& System::interruptMgr()
 }
 
 inline
-device::Led& System::led()
+System::Gpio& System::gpio()
 {
-    return led_;
+    return gpio_;
 }
 
 inline
@@ -102,3 +133,27 @@ System::UartSocket& System::uartSocket()
     return uartSocket_;
 }
 
+inline
+System::Led& System::led()
+{
+    return led_;
+}
+
+inline
+System::Button& System::button()
+{
+    return button_;
+}
+
+
+inline
+System::TimerDevice& System::timerDevice()
+{
+    return timerDevice_;
+}
+
+inline
+System::TimerMgr& System::timerMgr()
+{
+    return timerMgr_;
+}

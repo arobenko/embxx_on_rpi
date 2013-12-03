@@ -34,3 +34,21 @@ How to compile
    > VERBOSE=1 make
 4. The image of every compiled application will be:
    <embxx_build_dir>/image/<app_name>/kernel.img
+   
+Applications
+-------------------
+See the README files in "src/app" directory for details of what each 
+application (image) does.
+
+   
+Git branches
+-------------------
+"master" - main branch, will always contain latest stable (released) version 
+     that uses latest stable (released) version of embxx.
+"develop" - current development branch that uses latest development version of
+     embxx.
+
+Contact information
+-------------------
+Author: Alex Robenko
+E-mail: arobenko@gmail.com
