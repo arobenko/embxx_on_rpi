@@ -51,6 +51,9 @@ Session::Session(System& system)
             this,
             message::ButtonStateChangeMsgButtonState::Released));
 
+    system_.commsInStreamBuf().start();
+    startRead();
+
 }
 
 void Session::handleMessage(const LedStateCtrlMsg& msg)
@@ -132,7 +135,6 @@ void Session::sendMessage(const MsgBase& msg)
         return;
     }
 
-//    GASSERT(buf.size() == protStack_.length(msg));
     buf.flush();
 }
 
@@ -173,8 +175,9 @@ void Session::readHandler(embxx::io::ErrorStatus status)
         MsgPtr msg;
         auto readStatus = protStack_.read(msg, readIter, buf.size(), &missingSize);
         if (readStatus == embxx::comms::ErrorStatus::NotEnoughData) {
-            missingSize = std::max(missingSize, 1U);
-            scheduleRead(buf.size() + missingSize);
+            GASSERT(0 < missingSize);
+            auto nextSize = std::min(buf.size() + missingSize, buf.fullCapacity());
+            scheduleRead(nextSize);
             return;
         }
 
@@ -186,6 +189,7 @@ void Session::readHandler(embxx::io::ErrorStatus status)
         GASSERT(msg);
         auto lengthToConsume =
             static_cast<std::size_t>(std::distance(buf.begin(), readIter));
+        GASSERT(0 < lengthToConsume);
         buf.consume(lengthToConsume);
         msg->dispatch(*this);
     }

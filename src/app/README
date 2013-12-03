@@ -36,7 +36,7 @@ Current applications are:
         and 2 bytes of checksum. The checksum is a sum of all the bytes including
         first 2 synchronisation characters. The application expects the 
         following messages as an input: 
-         - Led state control message. Has ID = 4, and 1 byte of intended new led 
+         - Led state control message. Has ID = 3, and 1 byte of intended new led 
            state, which is 0 for "off" and 1 for "on".
         The application emits the following messages as an output:
         - Hearbeat message. Has ID = 0, and 2 bytes of sequential number as
@@ -53,8 +53,8 @@ Current applications are:
           > cat /dev/ttyUSB0 | hexdump -v -C
         To emit the led control message on your host machine use printf 
         redirected to proper device file:
-        Led on:  printf "\x48\x69\x04\x04\x01\x00\xba" > /dev/ttyUSB0
-        Led off: printf "\x48\x69\x04\x04\x00\x00\xb9" > /dev/ttyUSB0
+        Led on:  printf "\x48\x69\x04\x03\x01\x00\xb9" > /dev/ttyUSB0
+        Led off: printf "\x48\x69\x04\x03\x00\x00\xb8" > /dev/ttyUSB0
         Don't forget to configure your serial device with stty utility.
         The UART1 configuration is:
         Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.
