@@ -97,9 +97,9 @@ void Session::scheduleHeartbeat()
     GASSERT(heartbeatTimer_.isValid());
     heartbeatTimer_.asyncWait(
         HeartbeatPeriod,
-        [this](embxx::driver::ErrorStatus status)
+        [this](const embxx::error::ErrorStatus err)
         {
-            if (status != embxx::driver::ErrorStatus::Success) {
+            if (err) {
                 return;
             }
 
@@ -151,13 +151,13 @@ void Session::scheduleRead(std::size_t length)
         std::bind(&Session::readHandler, this, std::placeholders::_1));
 }
 
-void Session::readHandler(embxx::io::ErrorStatus status)
+void Session::readHandler(const embxx::error::ErrorStatus& err)
 {
-    if (status == embxx::io::ErrorStatus::Aborted) {
+    if (err.code() == embxx::error::ErrorCode::Aborted) {
         return;
     }
 
-    if (status != embxx::io::ErrorStatus::Success) {
+    if (err) {
         // Retry
         startRead();
         return;

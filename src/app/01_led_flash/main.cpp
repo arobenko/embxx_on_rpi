@@ -40,7 +40,7 @@ void ledOn(
 
     timer.asyncWait(
         LedChangeStateTimeout,
-        [&timer, &led](embxx::driver::ErrorStatus status)
+        [&timer, &led](const embxx::error::ErrorStatus& status)
         {
             static_cast<void>(status);
             ledOff(timer, led);
@@ -56,7 +56,7 @@ void ledOff(
 
     timer.asyncWait(
         LedChangeStateTimeout,
-        [&timer, &led](embxx::driver::ErrorStatus status)
+        [&timer, &led](const embxx::error::ErrorStatus& status)
         {
             static_cast<void>(status);
             ledOn(timer, led);

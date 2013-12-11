@@ -21,6 +21,7 @@
 
 #include "embxx/util/Assert.h"
 #include "embxx/util/StaticFunction.h"
+#include "embxx/error/ErrorStatus.h"
 
 #include "Function.h"
 
@@ -28,8 +29,8 @@ namespace device
 {
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler = embxx::util::StaticFunction<void ()>,
-          typename TCanWriteHandler = embxx::util::StaticFunction<void ()> >
+          typename TCanReadHandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)>,
+          typename TCanWriteHandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)> >
 class Uart1
 {
 public:
@@ -48,8 +49,11 @@ public:
     static void setWriteEnabled(bool enabled);
     void configBaud(unsigned baud);
 
-    static void setReadInterruptEnabled(bool enabled);
-    static void setWriteInterruptEnabled(bool enabled);
+    static void startRead();
+    static void stopRead();
+    static void startWrite();
+    static void stopWrite();
+
     static bool canRead();
     static bool canWrite();
     static CharType read();
@@ -62,6 +66,8 @@ public:
     void setCanWriteHandler(TFunc&& func);
 
 private:
+    static void setReadInterruptEnabled(bool enabled);
+    static void setWriteInterruptEnabled(bool enabled);
     void interruptHandler();
 
     unsigned sysClock_;
@@ -232,19 +238,33 @@ void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::configBaud(
 template <typename TInterruptMgr,
           typename TCanReadHandler,
           typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setReadInterruptEnabled(
-    bool enabled)
+void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::startRead()
 {
-    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableRxInterruptPos);
+    setReadInterruptEnabled(true);
 }
 
 template <typename TInterruptMgr,
           typename TCanReadHandler,
           typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setWriteInterruptEnabled(
-    bool enabled)
+void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::stopRead()
 {
-    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableTxInterruptPos);
+    setReadInterruptEnabled(false);
+}
+
+template <typename TInterruptMgr,
+          typename TCanReadHandler,
+          typename TCanWriteHandler>
+void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::startWrite()
+{
+    setWriteInterruptEnabled(true);
+}
+
+template <typename TInterruptMgr,
+          typename TCanReadHandler,
+          typename TCanWriteHandler>
+void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::stopWrite()
+{
+    setWriteInterruptEnabled(false);
 }
 
 template <typename TInterruptMgr,
@@ -308,13 +328,32 @@ void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setCanWriteHandler
 template <typename TInterruptMgr,
           typename TCanReadHandler,
           typename TCanWriteHandler>
+void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setReadInterruptEnabled(
+    bool enabled)
+{
+    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableRxInterruptPos);
+}
+
+template <typename TInterruptMgr,
+          typename TCanReadHandler,
+          typename TCanWriteHandler>
+void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setWriteInterruptEnabled(
+    bool enabled)
+{
+    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableTxInterruptPos);
+}
+
+
+template <typename TInterruptMgr,
+          typename TCanReadHandler,
+          typename TCanWriteHandler>
 void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::interruptHandler()
 {
     if (((*pAUX_MU_IER_REG & genMask(EnableRxInterruptPos)) != 0) &&
          ((*pAUX_MU_IIR_REG & genMask(RxInterruptPos)) != 0) &&
          (canRead())) {
         if (canReadHandler_) {
-            canReadHandler_();
+            canReadHandler_(embxx::error::ErrorCode::Success);
         }
         else {
            // Clear the RX queue
@@ -329,7 +368,7 @@ void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::interruptHandler()
         ((*pAUX_MU_IIR_REG & genMask(TxInterruptPos)) != 0) &&
         (canWrite())) {
         if (canWriteHandler_) {
-            canWriteHandler_();
+            canWriteHandler_(embxx::error::ErrorCode::Success);
         }
         else {
             setWriteInterruptEnabled(false);

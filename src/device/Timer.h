@@ -22,12 +22,13 @@
 #include <type_traits>
 
 #include "embxx/util/StaticFunction.h"
+#include "embxx/error/ErrorStatus.h"
 
 namespace device
 {
 
 template <typename TInterruptMgr,
-          typename THandler = embxx::util::StaticFunction<void (), 20> >
+          typename THandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&), 20> >
 class Timer
 {
 public:
@@ -218,7 +219,7 @@ void Timer<TInterruptMgr, THandler>::interruptHandler()
 {
     *IrqClearAckReg = 1; // Clear the interrupt
     if (handler_) {
-        handler_();
+        handler_(embxx::error::ErrorCode::Success);
     }
 }
 
