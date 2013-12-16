@@ -73,7 +73,7 @@ void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
     uartSocket.asyncWrite(&ch, 1,
         [&uartSocket, &ch](const embxx::error::ErrorStatus& es, std::size_t bytesWritten)
         {
-            GASSERT(status == embxx::driver::ErrorStatus::Success);
+            GASSERT(!es);
             GASSERT(bytesWritten == 1);
             static_cast<void>(es);
             static_cast<void>(bytesWritten);

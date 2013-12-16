@@ -57,6 +57,7 @@ public:
         IrqId_Gpio2,
         IrqId_Gpio3,
         IrqId_Gpio4,
+        IrqId_I2C,
         IrqId_NumOfIds // Must be last
     };
 
@@ -79,10 +80,11 @@ private:
         IrqInfo();
 
         HandlerFunc handler_;
-        EntryType mask_;
         volatile EntryType* pendingPtr_;
+        EntryType pendingMask_;
         volatile EntryType* enablePtr_;
         volatile EntryType* disablePtr_;
+        EntryType enDisMask_;
     };
 
     typedef std::array<IrqInfo, IrqId_NumOfIds> IrqsArray;
@@ -128,29 +130,42 @@ InterruptMgr<THandler>::InterruptMgr()
 {
     {
         auto& timerIrq = irqs_[IrqId_Timer];
-        timerIrq.mask_ = static_cast<EntryType>(1) << 0;
         timerIrq.pendingPtr_ = IrqBasicPending;
+        timerIrq.pendingMask_ = static_cast<EntryType>(1) << 0;
         timerIrq.enablePtr_ = IrqEnableBasic;
         timerIrq.disablePtr_ = IrqDisableBasic;
+        timerIrq.enDisMask_ = timerIrq.pendingMask_;
         static_cast<void>(timerIrq);
     }
 
     {
         auto& auxIrq = irqs_[IrqId_AuxInt];
-        auxIrq.mask_ = static_cast<EntryType>(1) << 29;
         auxIrq.pendingPtr_ = IrqPending1;
+        auxIrq.pendingMask_ = static_cast<EntryType>(1) << 29;
         auxIrq.enablePtr_ = IrqEnable1;
         auxIrq.disablePtr_ = IrqDisable1;
+        auxIrq.enDisMask_ = auxIrq.pendingMask_;
         static_cast<void>(auxIrq);
     }
 
     for (int i = 0; i <= (IrqId_Gpio4 - IrqId_Gpio1); ++i) {
         auto& gpioIrq = irqs_[IrqId_Gpio1 + i];
-        gpioIrq.mask_ = static_cast<EntryType>(1) << ((49 - 32) + i);
         gpioIrq.pendingPtr_ = IrqPending2;
+        gpioIrq.pendingMask_ = static_cast<EntryType>(1) << ((49 - 32) + i);
         gpioIrq.enablePtr_ = IrqEnable2;
         gpioIrq.disablePtr_ = IrqDisable2;
+        gpioIrq.enDisMask_ = gpioIrq.pendingMask_;
         static_cast<void>(gpioIrq);
+    }
+
+    {
+        auto& i2cIrq = irqs_[IrqId_I2C];
+        i2cIrq.pendingPtr_ = IrqBasicPending;
+        i2cIrq.pendingMask_ = static_cast<EntryType>(1) << 15;
+        i2cIrq.enablePtr_ = IrqEnable2;
+        i2cIrq.disablePtr_ = IrqDisable2;
+        i2cIrq.enDisMask_ = static_cast<EntryType>(1) << (53 - 32);
+        static_cast<void>(i2cIrq);
     }
 }
 
@@ -169,7 +184,7 @@ void InterruptMgr<THandler>::enableInterrupt(IrqId id)
 {
     GASSERT(id < IrqId_NumOfIds);
     auto& info = irqs_[id];
-    *info.enablePtr_ = info.mask_;
+    *info.enablePtr_ = info.enDisMask_;
 }
 
 template <typename THandler>
@@ -177,7 +192,7 @@ void InterruptMgr<THandler>::disableInterrupt(IrqId id)
 {
     GASSERT(id < IrqId_NumOfIds);
     auto& info = irqs_[id];
-    *info.disablePtr_ = info.mask_;
+    *info.disablePtr_ = info.enDisMask_;
 }
 
 template <typename THandler>
@@ -193,7 +208,7 @@ void InterruptMgr<THandler>::handleInterrupt()
             bool invoke = false;
             do {
                 if (info.pendingPtr_ == IrqBasicPending) {
-                    if ((info.mask_ & irqsBasic) != 0) {
+                    if ((info.pendingMask_ & irqsBasic) != 0) {
                         invoke = true;
                     }
                     break;
@@ -201,7 +216,7 @@ void InterruptMgr<THandler>::handleInterrupt()
 
                 if (info.pendingPtr_ == IrqPending1) {
                     if (((irqsBasic & MaskPending1) != 0) &&
-                        ((info.mask_ & irqsPending1) != 0)) {
+                        ((info.pendingMask_ & irqsPending1) != 0)) {
                         invoke = true;
                     }
                     break;
@@ -209,7 +224,7 @@ void InterruptMgr<THandler>::handleInterrupt()
 
                 if (info.pendingPtr_ == IrqPending2) {
                     if (((irqsBasic & MaskPending2) != 0) &&
-                        ((info.mask_ & irqsPending2) != 0)) {
+                        ((info.pendingMask_ & irqsPending2) != 0)) {
                         invoke = true;
                     }
                     break;
@@ -226,10 +241,11 @@ void InterruptMgr<THandler>::handleInterrupt()
 
 template <typename THandler>
 InterruptMgr<THandler>::IrqInfo::IrqInfo()
-    : mask_(0),
-      pendingPtr_(0),
+    : pendingPtr_(0),
+      pendingMask_(0),
       enablePtr_(0),
-      disablePtr_(0)
+      disablePtr_(0),
+      enDisMask_(0)
 {
 }
 
