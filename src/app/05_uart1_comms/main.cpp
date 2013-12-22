@@ -54,49 +54,6 @@ private:
     Led& led_;
 };
 
-//template <typename TTimer>
-//void buttonPressed(System::EventLoop& el, TTimer& timer)
-//{
-//    static_cast<void>(timer);
-//    auto& system = System::instance();
-//    auto& led = system.led();
-//    auto& socket = system.uartSocket();
-//
-//    static const char Str[] = "Button Pressed\r\n";
-//    static const std::size_t StrSize = sizeof(Str) - 1;
-//    socket.asyncWrite(Str, StrSize);
-//
-//    timer.cancel();
-//    auto result = el.post(
-//        [&led]()
-//        {
-//            led.on();
-//        });
-//    GASSERT(result);
-//    static_cast<void>(result);
-//
-//    static const unsigned WaitTime = 1000;
-//    timer.asyncWait(
-//        WaitTime,
-//        [&led](embxx::driver::ErrorStatus status)
-//        {
-//            if (status == embxx::driver::ErrorStatus::Aborted) {
-//                return;
-//            }
-//            led.off();
-//        });
-//}
-//
-//void buttonReleased()
-//{
-//    auto& system = System::instance();
-//    auto& socket = system.uartSocket();
-//
-//    static const char Str[] = "Button Released\r\n";
-//    static const std::size_t StrSize = sizeof(Str) - 1;
-//    socket.asyncWrite(Str, StrSize);
-//}
-
 }  // namespace
 
 int main() {
@@ -106,20 +63,6 @@ int main() {
 
     // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
-
-
-//    auto& timerMgr = system.timerMgr();
-//    auto timer = timerMgr.allocTimer();
-//    GASSERT(timer.isValid());
-//
-//    auto& button = system.button();
-//    button.setPressedHandler(
-//        std::bind(
-//            &buttonPressed<decltype(timer)>,
-//            std::ref(el),
-//            std::ref(timer)));
-//
-//    button.setReleasedHandler(&buttonReleased);
 
     Session session(system);
 
