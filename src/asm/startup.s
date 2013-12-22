@@ -16,6 +16,10 @@
 ;@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 .extern __stack;
+.extern __bss_start
+.extern __bss_end
+.extern __init_array_start
+.extern __init_array_end
 .extern main
 .extern interruptHandler
 
@@ -77,6 +81,29 @@ reset:
     cpsid if,0x13
     mov sp,r0
 
+    ;@ Zero bss section
+    ldr r0, =__bss_start
+    ldr r1, =__bss_end
+    mov r2, #0
+
+bss_zero_loop:
+    cmp     r0,r1
+    it      lt
+    strlt   r2,[r0], #4
+    blt     bss_zero_loop
+
+    ;@ Call constructors of all global objects
+    ldr r0, =__init_array_start
+    ldr r1, =__init_array_end
+
+globals_init_loop:
+    cmp     r0,r1
+    it      lt
+    ldrlt   r2, [r0], #4
+    blxlt   r2
+    blt     globals_init_loop
+
+    ;@ Main function
     bl main
     b reset ;@ restart if main function returns
 

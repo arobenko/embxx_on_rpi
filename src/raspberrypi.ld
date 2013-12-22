@@ -31,6 +31,14 @@ SECTIONS {
 		*(.bss.*)
 		__bss_end = .;
 	} > RAM
+	
+   .init.array :
+    {
+        __init_array_start = .;
+        *(.init_array)
+        *(.init_array.*)
+        __init_array_end = .;
+    } > RAM
 
 	/**
 	 *	Currently no heap
