@@ -26,6 +26,8 @@
 #include "embxx/util/Assert.h"
 #include "embxx/util/StaticFunction.h"
 #include "embxx/error/ErrorStatus.h"
+#include "embxx/device/context.h"
+#include "embxx/device/op_category.h"
 
 #include "Function.h"
 
@@ -33,24 +35,25 @@ namespace device
 {
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler = embxx::util::StaticFunction<void ()>,
-          typename TCanWriteHandler = embxx::util::StaticFunction<void ()>,
-          typename TReadCompleteHandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)>,
-          typename TWriteCompleteHandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)> >
+          typename TCanDoHandler = embxx::util::StaticFunction<void ()>,
+          typename TOpCompleteHandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)> >
 class I2C0
 {
 public:
 
     typedef std::uint8_t CharType;
-    typedef std::uint8_t AddressType; // Currently only 7 bit addresses are supported
-    typedef std::uint16_t LengthType;
+    typedef std::uint8_t DeviceIdType; // Currently only 7 bit addresses are supported
+    typedef embxx::device::op_category::SequentialReadWrite OpCategory;
 
     typedef TInterruptMgr InterruptMgr;
-    typedef TCanReadHandler CanReadHandler;
-    typedef TCanWriteHandler CanWriteHandler;
-    typedef TReadCompleteHandler ReadCompleteHandler;
-    typedef TWriteCompleteHandler WriteCompleteHandler;
+    typedef TCanDoHandler CanReadHandler;
+    typedef TCanDoHandler CanWriteHandler;
+    typedef TOpCompleteHandler ReadCompleteHandler;
+    typedef TOpCompleteHandler WriteCompleteHandler;
     typedef std::uint32_t EntryType;
+
+    typedef embxx::device::context::EventLoop EventLoopContext;
+    typedef embxx::device::context::Interrupt InterruptContext;
 
     typedef typename InterruptMgr::IrqId IrqId;
 
@@ -71,17 +74,31 @@ public:
     template <typename TFunc>
     void setWriteCompleteHandler(TFunc&& func);
 
+    template <typename TContext>
+    void startRead(
+        DeviceIdType address,
+        std::size_t length,
+        TContext contex);
 
-    void startRead(AddressType address, std::size_t length);
-    bool cancelRead();
-    void startWrite(AddressType address, std::size_t length);
-    bool cancelWrite();
+    template <typename TContext>
+    bool cancelRead(TContext context);
 
-    bool cancelReadInterruptCtx();
-    bool canRead();
-    bool canWrite();
-    CharType read();
-    void write(CharType value);
+    template <typename TContext>
+    void startWrite(
+        DeviceIdType address,
+        std::size_t length,
+        TContext context);
+
+    template <typename TContext>
+    bool cancelWrite(TContext context);
+
+    bool suspend(EventLoopContext context);
+    void resume(EventLoopContext context);
+
+    bool canRead(InterruptContext context);
+    bool canWrite(InterruptContext context);
+    CharType read(InterruptContext context);
+    void write(CharType value, InterruptContext context);
 
 
 private:
@@ -91,6 +108,12 @@ private:
         Write
     };
 
+    typedef std::uint16_t LengthType;
+
+    void startReadInternal(DeviceIdType address, std::size_t length);
+    bool cancelReadInternal();
+    void startWriteInternal(DeviceIdType address, std::size_t length);
+    bool cancelWriteInternal();
     static void setReadInterruptEnabled(bool enabled);
     static void setWriteInterruptEnabled(bool enabled);
     static void setDoneInterruptEnabled(bool enabled);
@@ -99,7 +122,7 @@ private:
     static void clearFifo();
     void interruptHandler();
     void completeTransfer(const embxx::error::ErrorStatus& status);
-    void setAddrAndLen(AddressType address, LengthType length);
+    void setAddrAndLen(DeviceIdType address, LengthType length);
 
     CanReadHandler canReadHandler_;
     CanWriteHandler canWriteHandler_;
@@ -218,12 +241,9 @@ private:
 
 // Implementation
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-I2C0(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::I2C0(
     InterruptMgr& interruptMgr,
     Function& funcDev)
     : op_(OpType::Idle),
@@ -243,35 +263,28 @@ I2C0(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-typename I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::EntryType
-I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-getDivider()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+typename I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::EntryType
+I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::getDivider()
 {
     return *pBSC0_DIV & genMask(ClockDividerPos, ClockDividerLen);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-setDivider(EntryType value)
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::setDivider(
+    EntryType value)
 {
     *pBSC0_DIV = value & genMask(ClockDividerPos, ClockDividerLen);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
 template <typename TFunc>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
 setCanReadHandler(
     TFunc&& func)
 {
@@ -279,12 +292,10 @@ setCanReadHandler(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
 template <typename TFunc>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
 setCanWriteHandler(
     TFunc&& func)
 {
@@ -292,12 +303,10 @@ setCanWriteHandler(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
 template <typename TFunc>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
 setReadCompleteHandler(
     TFunc&& func)
 {
@@ -305,27 +314,153 @@ setReadCompleteHandler(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
 template <typename TFunc>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
 setWriteCompleteHandler(
     TFunc&& func)
 {
     writeCompleteHandler_ = std::forward<TFunc>(func);
 }
 
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TContext>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startRead(
+    DeviceIdType address,
+    std::size_t length,
+    TContext context)
+{
+    static_cast<void>(context);
+    startReadInternal(address, length);
+}
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-startRead(
-    AddressType address,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TContext>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelRead(
+    TContext context)
+{
+    static_cast<void>(context);
+    return cancelReadInternal();
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TContext>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWrite(
+    DeviceIdType address,
+    std::size_t length,
+    TContext context)
+{
+    static_cast<void>(context);
+    startWriteInternal(address, length);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TContext>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWrite(
+    TContext context)
+{
+    static_cast<void>(context);
+    return cancelWriteInternal();
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::suspend(
+    EventLoopContext context)
+{
+    static_cast<void>(context);
+    setReadInterruptEnabled(false);
+    setDoneInterruptEnabled(false);
+    if (op_ == OpType::Idle) {
+        return false;
+    }
+
+    return true;
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::resume(
+    EventLoopContext context)
+{
+    static_cast<void>(context);
+    GASSERT(op_ != OpType::Idle);
+    if (op_ == OpType::Read) {
+        setReadInterruptEnabled(true);
+    }
+    else {
+        GASSERT(op_ == OpType::Write);
+        setWriteInterruptEnabled(true);
+    }
+    setDoneInterruptEnabled(true);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+canRead(InterruptContext context)
+{
+    static_cast<void>(context);
+    return ((*pBSC0_S & genMask(FifoContainsDataPos)) != 0) &&
+           (0 < remainingLen_);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::canWrite(
+    InterruptContext context)
+{
+    static_cast<void>(context);
+    return ((*pBSC0_S & genMask(FifoCanAcceptDataPos)) != 0) &&
+           (0 < remainingLen_);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+typename I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::CharType
+I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::read(
+    InterruptContext context)
+{
+    static_cast<void>(context);
+    GASSERT(canRead(context));
+    --remainingLen_;
+    return static_cast<CharType>(
+        *pBSC0_FIFO & genMask(DataPos, DataLen));
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::write(
+    CharType value,
+    InterruptContext context)
+{
+    static_cast<void>(context);
+    GASSERT(canWrite(context));
+    --remainingLen_;
+    *pBSC0_FIFO =
+        static_cast<EntryType>(value) & genMask(DataPos, DataLen);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startReadInternal(
+    DeviceIdType address,
     std::size_t length)
 {
     GASSERT(op_ == OpType::Idle);
@@ -339,205 +474,115 @@ startRead(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-bool I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-cancelRead()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelReadInternal()
 {
-    return cancelReadInterruptCtx(); // The functionality is the same
+    setReadInterruptEnabled(false);
+    setDoneInterruptEnabled(false);
+    if (op_ == OpType::Idle) {
+        return false;
+    }
+
+    GASSERT(op_ == OpType::Read);
+    clearFifo();
+    remainingLen_ = 0;
+    op_ = OpType::Idle;
+    return true;
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-startWrite(
-    AddressType address,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWriteInternal(
+    DeviceIdType address,
     std::size_t length)
 {
     GASSERT(op_ == OpType::Idle);
     GASSERT(remainingLen_ == 0);
     GASSERT(length <= genMask(DataLengthPos, DataLengthLen));
     op_ = OpType::Write;
-    setAddrAndLen(address, length);
+    setAddrAndLen(address, static_cast<LengthType>(length));
     setReadTransfer(false);
     setWriteInterruptEnabled(true);
     startTransfer();
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-bool I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-cancelWrite()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWriteInternal()
 {
-    GASSERT(op_ == OpType::Write);
     setWriteInterruptEnabled(false);
     setDoneInterruptEnabled(false);
+    if (op_ == OpType::Idle) {
+        return false;
+    }
+
+    GASSERT(op_ == OpType::Write);
     clearFifo();
-    bool result = (0 < remainingLen_);
     remainingLen_ = 0;
     op_ = OpType::Idle;
-    return result;
+    return true;
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-bool I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-cancelReadInterruptCtx()
-{
-    GASSERT(op_ == OpType::Read);
-    setReadInterruptEnabled(false);
-    setDoneInterruptEnabled(false);
-    clearFifo();
-    bool result = (0 < remainingLen_);
-    remainingLen_ = 0;
-    op_ = OpType::Idle;
-    return result;
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-bool I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-canRead()
-{
-    return ((*pBSC0_S & genMask(FifoContainsDataPos)) != 0) &&
-           (0 < remainingLen_);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-bool I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-canWrite()
-{
-    return ((*pBSC0_S & genMask(FifoCanAcceptDataPos)) != 0) &&
-           (0 < remainingLen_);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-typename I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::CharType
-I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-read()
-{
-    GASSERT(canRead());
-    --remainingLen_;
-    return static_cast<CharType>(
-        *pBSC0_FIFO & genMask(DataPos, DataLen));
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-write(
-    CharType value)
-{
-    GASSERT(canWrite());
-    --remainingLen_;
-    *pBSC0_FIFO =
-        static_cast<EntryType>(value) & genMask(DataPos, DataLen);
-}
-
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-setReadInterruptEnabled(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::setReadInterruptEnabled(
     bool enabled)
 {
     setBits(pBSC0_C, pBSC0_C_UsedBits, enabled, InterruptOnRxPos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-setWriteInterruptEnabled(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::setWriteInterruptEnabled(
     bool enabled)
 {
     setBits(pBSC0_C, pBSC0_C_UsedBits, enabled, InterruptOnTxPos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-setDoneInterruptEnabled(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::setDoneInterruptEnabled(
     bool enabled)
 {
     setBits(pBSC0_C, pBSC0_C_UsedBits, enabled, InterruptOnDonePos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-setReadTransfer(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::setReadTransfer(
     bool readTransfer)
 {
     setBits(pBSC0_C, pBSC0_C_UsedBits, readTransfer, ReadTransferPos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-startTransfer()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startTransfer()
 {
     setDoneInterruptEnabled(true);
     setBits(pBSC0_C, pBSC0_C_UsedBits, true, StartTransferPos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-clearFifo()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::clearFifo()
 {
     setBits(pBSC0_C, pBSC0_C_UsedBits, true, ClearFifoPos, ClearFifoLen);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-interruptHandler()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::interruptHandler()
 {
     EntryType status = *pBSC0_S;
     *pBSC0_S = status & pBSC0_S_WritableBits; // clear some bits
@@ -602,12 +647,9 @@ interruptHandler()
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-completeTransfer(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::completeTransfer(
     const embxx::error::ErrorStatus& status)
 {
     setReadInterruptEnabled(false);
@@ -626,13 +668,10 @@ completeTransfer(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler,
-          typename TReadCompleteHandler,
-          typename TWriteCompleteHandler>
-void I2C0<TInterruptMgr, TCanReadHandler, TCanWriteHandler, TReadCompleteHandler, TWriteCompleteHandler>::
-setAddrAndLen(
-    AddressType address,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::setAddrAndLen(
+    DeviceIdType address,
     LengthType length)
 {
     static_assert(

@@ -25,7 +25,8 @@
 #include "embxx/driver/Character.h"
 #include "embxx/io/OutStreamBuf.h"
 #include "embxx/io/OutStream.h"
-#include "embxx/device/I2cCharAdapter.h"
+#include "embxx/device/DeviceOpQueue.h"
+#include "embxx/device/IdDeviceCharAdapter.h"
 
 #include "device/Function.h"
 #include "device/Gpio.h"
@@ -52,13 +53,18 @@ public:
 
     typedef device::Uart1<InterruptMgr> Uart;
 
-    typedef device::I2C0<InterruptMgr> I2C;
+    typedef device::I2C0<
+        InterruptMgr,
+        embxx::util::StaticFunction<void(), 20>,
+        embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&), 20> > I2C;
 
-    typedef embxx::device::I2cCharAdapter<I2C> CharI2C;
+    typedef embxx::device::DeviceOpQueue<I2C, 2> I2cOpQueue;
+
+    typedef embxx::device::IdDeviceCharAdapter<I2cOpQueue> CharI2cAdapter;
 
 //    typedef embxx::driver::Character<Uart, EventLoop> UartDriver;
 
-    typedef embxx::driver::Character<CharI2C, EventLoop> I2cDriver;
+    typedef embxx::driver::Character<CharI2cAdapter, EventLoop> I2cDriver;
 
     typedef component::OnBoardLed<Gpio> Led;
 
@@ -98,7 +104,8 @@ private:
     Gpio gpio_;
 //    Uart uart_;
     I2C i2c_;
-    CharI2C i2cAdapter_;
+    I2cOpQueue i2cOpQueue_;
+    CharI2cAdapter i2cCharAdapter_;
 
     // Drivers
 //    UartDriver uartDriver_;
@@ -112,7 +119,7 @@ private:
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
     static const unsigned I2cFreq = 100000; // 100KHz
-    static const I2C::AddressType EepromAddress = 0x55;
+    static const I2C::DeviceIdType EepromAddress = 0x55;
 };
 
 extern "C"

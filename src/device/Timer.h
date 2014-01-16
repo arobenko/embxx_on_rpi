@@ -164,7 +164,7 @@ bool Timer<TInterruptMgr, THandler>::cancelWait(
     }
 
     *ControlReg &= ~ControlRegTimerEnableMask;
-    waitInProgress_ = true;
+    waitInProgress_ = false;
     return true;
 }
 
@@ -270,6 +270,7 @@ template <typename TInterruptMgr,
 void Timer<TInterruptMgr, THandler>::interruptHandler()
 {
     *IrqClearAckReg = 1; // Clear the interrupt
+    waitInProgress_ = false;
     if (handler_) {
         handler_(embxx::error::ErrorCode::Success);
     }

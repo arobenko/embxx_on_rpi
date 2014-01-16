@@ -74,29 +74,19 @@ int main() {
 //    SLOG(log, embxx::util::log::Info, "Hello");
 
 
-//    System::I2C::CharType buf[] =
-//    {
-//        0x04, 0x00, 0xde, 0xad,
-//        0xde, 0xad, 0xde, 0xad,
-//        0xde, 0xad, 0xde, 0xad,
-//        0xde, 0xad, 0xde, 0xad,
-//        0xde, 0xad, 0xde, 0xad
-//    };
-//
-//    static const std::size_t BufSize = sizeof(buf)/sizeof(buf[0]);
+    System::I2C::CharType buf[] =
+    {
+        0x04, 0x00, 0xde, 0xad,
+        0xde, 0xad, 0xde, 0xad,
+        0xde, 0xad, 0xde, 0xad,
+        0xde, 0xad, 0xde, 0xad,
+        0xde, 0xad, 0xde, 0xad
+    };
+
+    static const std::size_t BufSize = sizeof(buf)/sizeof(buf[0]);
 
     auto& i2c = system.i2cDriver();
-//    i2c.asyncWrite(&buf[0], BufSize,
-//        [](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
-//        {
-//            // TODO:
-//            GASSERT(!err);
-//            static_cast<void>(err);
-//            static_cast<void>(bytesTransferred);
-//        });
-
-    std::array<System::I2C::CharType, 2> readBuf;
-    i2c.asyncRead(&readBuf[0], readBuf.size(),
+    i2c.asyncWrite(&buf[0], BufSize,
         [](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
         {
             // TODO:
@@ -104,6 +94,16 @@ int main() {
             static_cast<void>(err);
             static_cast<void>(bytesTransferred);
         });
+
+//    std::array<System::I2C::CharType, 2> readBuf;
+//    i2c.asyncRead(&readBuf[0], readBuf.size(),
+//        [](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
+//        {
+//            // TODO:
+//            GASSERT(!err);
+//            static_cast<void>(err);
+//            static_cast<void>(bytesTransferred);
+//        });
 
     device::interrupt::enable();
     auto& el = system.eventLoop();
