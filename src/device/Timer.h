@@ -21,8 +21,10 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "embxx/util/Assert.h"
 #include "embxx/util/StaticFunction.h"
 #include "embxx/error/ErrorStatus.h"
+#include "embxx/device/context.h"
 
 namespace device
 {
@@ -39,27 +41,33 @@ public:
 
     Timer(InterruptMgr& interruptMgr);
 
-    void enableInterrupts();
-    void disableInterrupts();
-    bool hasPendingInterrupt() const;
-    void start();
-    void stop();
-    bool configWait(unsigned millisecs);
-    unsigned getElapsed() const;
-
     template <typename TFunc>
     void setHandler(TFunc&& handler);
 
+    template <typename TContext>
+    void startWait(WaitTimeType waitMs, TContext context);
+
+    bool cancelWait(embxx::device::context::EventLoop context);
+
+    bool suspendWait(embxx::device::context::EventLoop context);
+    void resumeWait(embxx::device::context::EventLoop context);
+
+    unsigned getElapsed(embxx::device::context::EventLoop context) const;
 
 private:
     typedef std::uint32_t EntryType;
     typedef typename InterruptMgr::IrqId IrqId;
 
+    void startWaitInternal(WaitTimeType waitMs);
+    void enableInterrupts();
+    void disableInterrupts();
+    bool configWait(WaitTimeType millisecs);
     void interruptHandler();
 
 
     InterruptMgr& interruptMgr_;
     HandlerFunc handler_;
+    bool waitInProgress_;
 
     static const unsigned SysClockFreq = 1000000; // 1 MHz - calculated by trial and error
 
@@ -112,16 +120,107 @@ private:
 template <typename TInterruptMgr,
           typename THandler>
 Timer<TInterruptMgr, THandler>::Timer(InterruptMgr& interruptMgr)
-    : interruptMgr_(interruptMgr)
+    : interruptMgr_(interruptMgr),
+      waitInProgress_(false)
 {
     // Make it 32 bit counter by default
     *ControlReg |= ControlRegCounterTypeMask;
     interruptMgr_.registerHandler(
         IrqId::IrqId_Timer,
         std::bind(&Timer::interruptHandler, this));
-    stop();
+    *ControlReg &= ~ControlRegTimerEnableMask;
     disableInterrupts();
     *IrqClearAckReg = 1; // Clear the interrupt if such exists
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+template <typename TFunc>
+void Timer<TInterruptMgr, THandler>::setHandler(TFunc&& handler)
+{
+    handler_ = std::forward<TFunc>(handler);
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+template <typename TContext>
+void Timer<TInterruptMgr, THandler>::startWait(
+    WaitTimeType waitMs,
+    TContext context)
+{
+    static_cast<void>(context);
+    startWaitInternal(waitMs);
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+bool Timer<TInterruptMgr, THandler>::cancelWait(
+    embxx::device::context::EventLoop context)
+{
+    static_cast<void>(context);
+    disableInterrupts();
+    if (!waitInProgress_) {
+        return false;
+    }
+
+    *ControlReg &= ~ControlRegTimerEnableMask;
+    waitInProgress_ = true;
+    return true;
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+bool Timer<TInterruptMgr, THandler>::suspendWait(
+    embxx::device::context::EventLoop context)
+{
+    static_cast<void>(context);
+    disableInterrupts();
+    if (!waitInProgress_) {
+        return false;
+    }
+
+    return true;
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+void Timer<TInterruptMgr, THandler>::resumeWait(
+    embxx::device::context::EventLoop context)
+{
+    static_cast<void>(context);
+    GASSERT(waitInProgress_);
+    enableInterrupts();
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+unsigned Timer<TInterruptMgr, THandler>::getElapsed(
+    embxx::device::context::EventLoop context) const
+{
+    static_cast<void>(context);
+    unsigned elapsedTicks = *LoadReg - *ValueReg;
+    unsigned prescaler =
+        (*ControlReg & ControlRegPrescalerMask) >> ControlRegPrescalerPos;
+
+    while (0 < prescaler) {
+        elapsedTicks <<= 4;
+        --prescaler;
+    }
+
+    static const unsigned TicksInMillisec = (SysClockFreq / 1000);
+    return elapsedTicks / TicksInMillisec;
+}
+
+template <typename TInterruptMgr,
+          typename THandler>
+void Timer<TInterruptMgr, THandler>::startWaitInternal(
+    WaitTimeType waitMs)
+{
+    GASSERT(!waitInProgress_);
+    waitInProgress_ = true;
+    configWait(waitMs);
+    enableInterrupts();
+    *ControlReg |= ControlRegTimerEnableMask;
 }
 
 template <typename TInterruptMgr,
@@ -139,28 +238,6 @@ void Timer<TInterruptMgr, THandler>::disableInterrupts()
     interruptMgr_.disableInterrupt(IrqId::IrqId_Timer);
     *ControlReg &= ~ControlRegIrqEnableMask;
 }
-
-template <typename TInterruptMgr,
-          typename THandler>
-bool Timer<TInterruptMgr, THandler>::hasPendingInterrupt() const
-{
-    return (*RawIrqReg != 0);
-}
-
-template <typename TInterruptMgr,
-          typename THandler>
-void Timer<TInterruptMgr, THandler>::start()
-{
-    *ControlReg |= ControlRegTimerEnableMask;
-}
-
-template <typename TInterruptMgr,
-          typename THandler>
-void Timer<TInterruptMgr, THandler>::stop()
-{
-    *ControlReg &= ~ControlRegTimerEnableMask;
-}
-
 
 template <typename TInterruptMgr,
           typename THandler>
@@ -186,31 +263,6 @@ bool Timer<TInterruptMgr, THandler>::configWait(unsigned millisecs)
     *ControlReg |= (static_cast<EntryType>(prescaler) << ControlRegPrescalerPos);
 
     return true;
-}
-
-template <typename TInterruptMgr,
-          typename THandler>
-unsigned Timer<TInterruptMgr, THandler>::getElapsed() const
-{
-    unsigned elapsedTicks = *LoadReg - *ValueReg;
-    unsigned prescaler =
-        (*ControlReg & ControlRegPrescalerMask) >> ControlRegPrescalerPos;
-
-    while (0 < prescaler) {
-        elapsedTicks <<= 4;
-        --prescaler;
-    }
-
-    static const unsigned TicksInMillisec = (SysClockFreq / 1000);
-    return elapsedTicks / TicksInMillisec;
-}
-
-template <typename TInterruptMgr,
-          typename THandler>
-template <typename TFunc>
-void Timer<TInterruptMgr, THandler>::setHandler(TFunc&& handler)
-{
-    handler_ = std::forward<TFunc>(handler);
 }
 
 template <typename TInterruptMgr,
