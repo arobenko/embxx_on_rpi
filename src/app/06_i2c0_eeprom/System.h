@@ -58,40 +58,39 @@ public:
         embxx::util::StaticFunction<void(), 20>,
         embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&), 20> > I2C;
 
-    typedef embxx::device::DeviceOpQueue<I2C, 2> I2cOpQueue;
+    typedef embxx::device::DeviceOpQueue<I2C, 1> I2cOpQueue;
 
     typedef embxx::device::IdDeviceCharAdapter<I2cOpQueue> CharI2cAdapter;
 
-//    typedef embxx::driver::Character<Uart, EventLoop> UartDriver;
+    typedef embxx::driver::Character<Uart, EventLoop> UartDriver;
 
     typedef embxx::driver::Character<CharI2cAdapter, EventLoop> I2cDriver;
 
     typedef component::OnBoardLed<Gpio> Led;
 
-//    static const std::size_t OutStreamBufSize = 1024;
-//    typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
-//    typedef embxx::io::OutStream<OutStreamBuf> OutStream;
-//    typedef embxx::util::log::StreamFlushSuffixer<
-//            embxx::util::log::StreamableValueSuffixer<
-//                const OutStream::CharType*,
-//                embxx::util::log::LevelStringPrefixer<
-//                    embxx::util::StreamLogger<
-//                        embxx::util::log::Debug,
-//                        OutStream
-//                    >
-//                >
-//            >
-//        > Log;
+    static const std::size_t OutStreamBufSize = 1024;
+    typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
+    typedef embxx::io::OutStream<OutStreamBuf> OutStream;
+    typedef embxx::util::log::StreamFlushSuffixer<
+            embxx::util::log::StreamableValueSuffixer<
+                const OutStream::CharType*,
+                embxx::util::log::LevelStringPrefixer<
+                    embxx::util::StreamLogger<
+                        embxx::util::log::Debug,
+                        OutStream
+                    >
+                >
+            >
+        > Log;
 
     static System& instance();
 
     inline EventLoop& eventLoop();
     inline InterruptMgr& interruptMgr();
     inline Uart& uart();
-//    inline I2C& i2c();
     inline I2cDriver& i2cDriver();
     inline Led& led();
-//    inline Log& log();
+    inline Log& log();
 
 private:
     System();
@@ -102,20 +101,20 @@ private:
     InterruptMgr interruptMgr_;
     device::Function func_;
     Gpio gpio_;
-//    Uart uart_;
+    Uart uart_;
     I2C i2c_;
     I2cOpQueue i2cOpQueue_;
     CharI2cAdapter i2cCharAdapter_;
 
     // Drivers
-//    UartDriver uartDriver_;
+    UartDriver uartDriver_;
     I2cDriver i2cDriver_;
 
     // Components
     Led led_;
-//    OutStreamBuf buf_;
-//    OutStream stream_;
-//    Log log_;
+    OutStreamBuf buf_;
+    OutStream stream_;
+    Log log_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
     static const unsigned I2cFreq = 100000; // 100KHz
@@ -138,18 +137,6 @@ inline System::InterruptMgr& System::interruptMgr()
     return interruptMgr_;
 }
 
-//inline
-//System::Uart& System::uart()
-//{
-//    return uart_;
-//}
-
-//inline
-//System::I2C& System::i2c()
-//{
-//    return i2c_;
-//}
-
 inline
 System::I2cDriver& System::i2cDriver()
 {
@@ -162,8 +149,8 @@ System::Led& System::led()
     return led_;
 }
 
-//inline
-//System::Log& System::log()
-//{
-//    return log_;
-//}
+inline
+System::Log& System::log()
+{
+    return log_;
+}

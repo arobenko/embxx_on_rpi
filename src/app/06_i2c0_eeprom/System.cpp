@@ -25,19 +25,19 @@ System& System::instance()
 
 System::System()
     : gpio_(interruptMgr_, func_),
-//      uart_(interruptMgr_, func_, SysClockFreq),
+      uart_(interruptMgr_, func_, SysClockFreq),
       i2c_(interruptMgr_, func_),
       i2cOpQueue_(i2c_),
       i2cCharAdapter_(i2cOpQueue_, EepromAddress),
-//      uartDriver_(uart_, el_),
+      uartDriver_(uart_, el_),
       i2cDriver_(i2cCharAdapter_, el_),
-      led_(gpio_)//,
-//      buf_(uartDriver_),
-//      stream_(buf_),
-//      log_("\r\n", stream_)
+      led_(gpio_),
+      buf_(uartDriver_),
+      stream_(buf_),
+      log_("\r\n", stream_)
 {
-//    uart_.configBaud(115200);
-//    uart_.setWriteEnabled(true);
+    uart_.configBaud(115200);
+    uart_.setWriteEnabled(true);
     i2c_.setDivider(SysClockFreq/I2cFreq);
 }
 

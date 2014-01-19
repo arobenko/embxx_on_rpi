@@ -68,13 +68,11 @@ int main() {
     // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
-//    GASSERT(0);
-
-//    auto& log = system.log();
-//    SLOG(log, embxx::util::log::Info, "Hello");
+    auto& log = system.log();
+    SLOG(log, embxx::util::log::Info, "Hello");
 
 
-    System::I2C::CharType buf[] =
+    static const System::I2C::CharType Buf[] =
     {
         0x04, 0x00, 0xde, 0xad,
         0xde, 0xad, 0xde, 0xad,
@@ -83,27 +81,40 @@ int main() {
         0xde, 0xad, 0xde, 0xad
     };
 
-    static const std::size_t BufSize = sizeof(buf)/sizeof(buf[0]);
+    static const std::size_t BufSize = sizeof(Buf)/sizeof(Buf[0]);
+
+    System::I2C::CharType readBuf[BufSize - 2] = {0};
 
     auto& i2c = system.i2cDriver();
-    i2c.asyncWrite(&buf[0], BufSize,
-        [](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
+    i2c.asyncWrite(&Buf[0], BufSize,
+        [&](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
         {
-            // TODO:
+            SLOG(log, embxx::util::log::Info, "Write Callback is called: " << bytesTransferred);
             GASSERT(!err);
             static_cast<void>(err);
             static_cast<void>(bytesTransferred);
-        });
 
-//    std::array<System::I2C::CharType, 2> readBuf;
-//    i2c.asyncRead(&readBuf[0], readBuf.size(),
-//        [](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
-//        {
-//            // TODO:
-//            GASSERT(!err);
-//            static_cast<void>(err);
-//            static_cast<void>(bytesTransferred);
-//        });
+            for (volatile auto i = 0; i < 5000000; ++i) {};
+            i2c.asyncWrite(&Buf[0], 2,
+                [&](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
+                {
+                    SLOG(log, embxx::util::log::Info, "Address Write Callback is called: " << (int)err.code() << "; " << bytesTransferred);
+
+                    GASSERT(!err);
+                    static_cast<void>(err);
+                    static_cast<void>(bytesTransferred);
+
+                    i2c.asyncRead(&readBuf[0], BufSize - 2,
+                        [&](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
+                        {
+                            SLOG(log, embxx::util::log::Info, "Read Callback is called: " << (int)err.code() << "; " << bytesTransferred);
+                            GASSERT(!err);
+                            static_cast<void>(err);
+                            static_cast<void>(bytesTransferred);
+//                            GASSERT(std::equal(&Buf[2], &Buf[0] + BufSize, &readBuf[0]));
+                        });
+                });
+        });
 
     device::interrupt::enable();
     auto& el = system.eventLoop();
