@@ -32,6 +32,7 @@ System::System()
       uartDriver_(uart_, el_),
       i2cDriver_(i2cCharAdapter_, el_),
       led_(gpio_),
+      eeprom_(i2cDriver_),
       buf_(uartDriver_),
       stream_(buf_),
       log_("\r\n", stream_)

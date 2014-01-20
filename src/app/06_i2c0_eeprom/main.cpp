@@ -85,8 +85,8 @@ int main() {
 
     System::I2C::CharType readBuf[BufSize - 2] = {0};
 
-    auto& i2c = system.i2cDriver();
-    i2c.asyncWrite(&Buf[0], BufSize,
+    auto& eeprom = system.eeprom();
+    eeprom.asyncWrite(&Buf[0], BufSize,
         [&](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
         {
             SLOG(log, embxx::util::log::Info, "Write Callback is called: " << bytesTransferred);
@@ -94,8 +94,7 @@ int main() {
             static_cast<void>(err);
             static_cast<void>(bytesTransferred);
 
-            for (volatile auto i = 0; i < 5000000; ++i) {};
-            i2c.asyncWrite(&Buf[0], 2,
+            eeprom.asyncWrite(&Buf[0], 2,
                 [&](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
                 {
                     SLOG(log, embxx::util::log::Info, "Address Write Callback is called: " << (int)err.code() << "; " << bytesTransferred);
@@ -104,14 +103,14 @@ int main() {
                     static_cast<void>(err);
                     static_cast<void>(bytesTransferred);
 
-                    i2c.asyncRead(&readBuf[0], BufSize - 2,
+                    eeprom.asyncRead(&readBuf[0], BufSize - 2,
                         [&](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
                         {
                             SLOG(log, embxx::util::log::Info, "Read Callback is called: " << (int)err.code() << "; " << bytesTransferred);
                             GASSERT(!err);
                             static_cast<void>(err);
                             static_cast<void>(bytesTransferred);
-//                            GASSERT(std::equal(&Buf[2], &Buf[0] + BufSize, &readBuf[0]));
+                            GASSERT(std::equal(&Buf[2], &Buf[0] + BufSize, &readBuf[0]));
                         });
                 });
         });

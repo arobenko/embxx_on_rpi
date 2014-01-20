@@ -37,6 +37,7 @@
 #include "device/I2C0.h"
 
 #include "component/OnBoardLed.h"
+#include "component/Eeprom.h"
 
 class System
 {
@@ -58,7 +59,7 @@ public:
         embxx::util::StaticFunction<void(), 20>,
         embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&), 20> > I2C;
 
-    typedef embxx::device::DeviceOpQueue<I2C, 1> I2cOpQueue;
+    typedef embxx::device::DeviceOpQueue<I2C, 2> I2cOpQueue;
 
     typedef embxx::device::IdDeviceCharAdapter<I2cOpQueue> CharI2cAdapter;
 
@@ -67,6 +68,7 @@ public:
     typedef embxx::driver::Character<CharI2cAdapter, EventLoop> I2cDriver;
 
     typedef component::OnBoardLed<Gpio> Led;
+    typedef component::Eeprom<I2cDriver> Eeprom;
 
     static const std::size_t OutStreamBufSize = 1024;
     typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
@@ -90,6 +92,7 @@ public:
     inline Uart& uart();
     inline I2cDriver& i2cDriver();
     inline Led& led();
+    inline Eeprom& eeprom();
     inline Log& log();
 
 private:
@@ -112,6 +115,7 @@ private:
 
     // Components
     Led led_;
+    Eeprom eeprom_;
     OutStreamBuf buf_;
     OutStream stream_;
     Log log_;
@@ -147,6 +151,11 @@ inline
 System::Led& System::led()
 {
     return led_;
+}
+
+inline System::Eeprom& System::eeprom()
+{
+    return eeprom_;
 }
 
 inline

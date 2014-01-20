@@ -1,5 +1,5 @@
 //
-// Copyright 2013 (C). Alex Robenko. All rights reserved.
+// Copyright 2014 (C). Alex Robenko. All rights reserved.
 //
 
 // This file is free software: you can redistribute it and/or modify
@@ -15,22 +15,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <functional>
+#include <cstddef>
 
-
-namespace std
+extern "C"
+int memcmp( const void* lhs, const void* rhs, size_t count )
 {
-
-namespace placeholders
-{
-
-decltype(std::placeholders::_1) _1;
-decltype(std::placeholders::_2) _2;
-decltype(std::placeholders::_3) _3;
-decltype(std::placeholders::_4) _4;
-
-}  // namespace placeholders
-
-}  // namespace std
-
-
+    auto lhsPtr = reinterpret_cast<const char*>(lhs);
+    auto rhsPtr = reinterpret_cast<const char*>(rhs);
+    int diffSum = 0;
+    while (0 < count) {
+        diffSum += static_cast<int>(*lhsPtr) - static_cast<int>(*rhsPtr);
+        if (diffSum != 0) {
+            break;
+        }
+        --count;
+        ++lhsPtr;
+        ++rhsPtr;
+    }
+    return diffSum;
+}
