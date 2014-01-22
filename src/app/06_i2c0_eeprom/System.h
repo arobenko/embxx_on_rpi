@@ -56,8 +56,8 @@ public:
 
     typedef device::I2C0<
         InterruptMgr,
-        embxx::util::StaticFunction<void(), 20>,
-        embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&), 20> > I2C;
+        embxx::util::StaticFunction<void(), sizeof(void*) * 4>,
+        embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&), sizeof(void*) * 4> > I2C;
 
     typedef embxx::device::DeviceOpQueue<I2C, 2> I2cOpQueue;
 
@@ -68,7 +68,10 @@ public:
     typedef embxx::driver::Character<CharI2cAdapter, EventLoop> I2cDriver;
 
     typedef component::OnBoardLed<Gpio> Led;
-    typedef component::Eeprom<I2cDriver> Eeprom;
+    typedef component::Eeprom<
+        I2cDriver,
+        embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&, std::size_t), sizeof(void*) * 6>
+    > Eeprom;
 
     static const std::size_t OutStreamBufSize = 1024;
     typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
@@ -89,10 +92,10 @@ public:
 
     inline EventLoop& eventLoop();
     inline InterruptMgr& interruptMgr();
-    inline Uart& uart();
-    inline I2cDriver& i2cDriver();
+
     inline Led& led();
-    inline Eeprom& eeprom();
+    inline Eeprom& eeprom1();
+    inline Eeprom& eeprom2();
     inline Log& log();
 
 private:
@@ -107,22 +110,26 @@ private:
     Uart uart_;
     I2C i2c_;
     I2cOpQueue i2cOpQueue_;
-    CharI2cAdapter i2cCharAdapter_;
+    CharI2cAdapter i2cCharAdapter1_;
+    CharI2cAdapter i2cCharAdapter2_;
 
     // Drivers
     UartDriver uartDriver_;
-    I2cDriver i2cDriver_;
+    I2cDriver i2cDriver1_;
+    I2cDriver i2cDriver2_;
 
     // Components
     Led led_;
-    Eeprom eeprom_;
+    Eeprom eeprom1_;
+    Eeprom eeprom2_;
     OutStreamBuf buf_;
     OutStream stream_;
     Log log_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
     static const unsigned I2cFreq = 100000; // 100KHz
-    static const I2C::DeviceIdType EepromAddress = 0x55;
+    static const I2C::DeviceIdType EepromAddress1 = 0x54;
+    static const I2C::DeviceIdType EepromAddress2 = 0x55;
 };
 
 extern "C"
@@ -142,20 +149,19 @@ inline System::InterruptMgr& System::interruptMgr()
 }
 
 inline
-System::I2cDriver& System::i2cDriver()
-{
-    return i2cDriver_;
-}
-
-inline
 System::Led& System::led()
 {
     return led_;
 }
 
-inline System::Eeprom& System::eeprom()
+inline System::Eeprom& System::eeprom1()
 {
-    return eeprom_;
+    return eeprom1_;
+}
+
+inline System::Eeprom& System::eeprom2()
+{
+    return eeprom2_;
 }
 
 inline

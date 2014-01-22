@@ -62,7 +62,7 @@ public:
     typedef component::Button<
         ButtonDriver,
         false,
-        embxx::util::StaticFunction<void(), 20> > Button;
+        embxx::util::StaticFunction<void(), sizeof(void*) * 4> > Button;
     typedef embxx::io::InStreamBuf<UartDriver, 1024> CommsInStreamBuf;
     typedef embxx::io::OutStreamBuf<UartDriver, 1024> CommsOutStreamBuf;
 

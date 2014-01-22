@@ -618,6 +618,7 @@ void I2C0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::completeTransfer(
 
     auto opTmp = op_;
     op_ = OpType::Idle;
+    remainingLen_ = 0;
     if (opTmp == OpType::Read) {
         GASSERT(readCompleteHandler_);
         readCompleteHandler_(status);

@@ -40,11 +40,14 @@ public:
 
     typedef typename Driver::CharType CharType;
     typedef unsigned AttemtsCountType;
+    typedef std::uint16_t EepromAddressType;
+    typedef typename Driver::Device::DeviceIdType DeviceIdType;
 
     explicit Eeprom(Driver& driver);
 
     void setAttemptsLimit(AttemtsCountType limit);
 
+    DeviceIdType getDeviceId() const;
 
     template <typename TFunc>
     void asyncRead(CharType* buf, std::size_t size, TFunc&& callback);
@@ -57,7 +60,7 @@ private:
     void opCompleteCallback(const embxx::error::ErrorStatus& err, std::size_t bytesTransferred);
     void invokeHandler(const embxx::error::ErrorStatus& err, std::size_t bytesTransferred);
 
-    typedef embxx::util::StaticFunction<void (), 20> DriverCallerFunc;
+    typedef embxx::util::StaticFunction<void ()> DriverCallerFunc;
 
     Driver& driver_;
     DriverCallerFunc driverCaller_;
@@ -80,6 +83,13 @@ template <typename TDriver, typename THandler>
 void Eeprom<TDriver, THandler>::setAttemptsLimit(AttemtsCountType limit)
 {
     attemptsLimit_ = limit;
+}
+
+template <typename TDriver, typename THandler>
+typename Eeprom<TDriver, THandler>::DeviceIdType
+Eeprom<TDriver, THandler>::getDeviceId() const
+{
+    return driver_.device().id();
 }
 
 template <typename TDriver, typename THandler>
