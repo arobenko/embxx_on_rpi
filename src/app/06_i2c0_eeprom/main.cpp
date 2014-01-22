@@ -158,7 +158,7 @@ void readFunc(
                 return;
             }
 
-            static_cast<void>(err);
+            static_cast<void>(bytesTransferred);
             GASSERT(bytesTransferred == sizeof(address));
             std::size_t readCount = std::min(bufSize - sizeof(address), std::size_t(maxAddress - address));
 
@@ -175,7 +175,7 @@ void readFunc(
                         return;
                     }
 
-                    static_cast<void>(err);
+                    static_cast<void>(bytesTransferred);
                     GASSERT(bytesTransferred == readCount);
 
                     auto readBuf = &buf[sizeof(address)];

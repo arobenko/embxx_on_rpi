@@ -8,7 +8,8 @@ function (bin_led_flash)
     set (link
         ${STARTUP_LIB_NAME}
         ${DEVICE_LIB_NAME}
-        ${STDLIB_STUB_LIB_NAME})
+        ${STDLIB_STUB_LIB_NAME}
+        gcc)
 
     add_executable(${name} ${src})
     target_link_libraries (${name} ${link})

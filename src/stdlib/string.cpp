@@ -34,3 +34,17 @@ int memcmp( const void* lhs, const void* rhs, size_t count )
     }
     return diffSum;
 }
+
+extern "C"
+void* memset(void* dest, int ch, size_t count)
+{
+    auto destPtr = reinterpret_cast<unsigned char*>(dest);
+    auto castedCh = static_cast<unsigned char>(ch);
+    while (0 < count) {
+        *destPtr = castedCh;
+        ++destPtr;
+        --count;
+    }
+
+    return dest;
+}
