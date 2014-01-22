@@ -77,9 +77,9 @@ void buttonPressed(System::EventLoop& el, TTimer& timer)
     static const unsigned WaitTime = 1000;
     timer.asyncWait(
         WaitTime,
-        [&led](embxx::driver::ErrorStatus status)
+        [&led](const embxx::error::ErrorStatus& es)
         {
-            if (status == embxx::driver::ErrorStatus::Aborted) {
+            if (es.code() == embxx::error::ErrorCode::Aborted) {
                 return;
             }
             led.off();

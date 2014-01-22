@@ -58,11 +58,11 @@ void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch);
 void readChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
 {
     uartSocket.asyncRead(&ch, 1,
-        [&uartSocket, &ch](embxx::driver::ErrorStatus status, std::size_t bytesRead)
+        [&uartSocket, &ch](const embxx::error::ErrorStatus& es, std::size_t bytesRead)
         {
-            GASSERT(status == embxx::driver::ErrorStatus::Success);
+            GASSERT(!es);
             GASSERT(bytesRead == 1);
-            static_cast<void>(status);
+            static_cast<void>(es);
             static_cast<void>(bytesRead);
             writeChar(uartSocket, ch);
         });
@@ -71,11 +71,11 @@ void readChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
 void writeChar(System::UartSocket& uartSocket, System::Uart::CharType& ch)
 {
     uartSocket.asyncWrite(&ch, 1,
-        [&uartSocket, &ch](embxx::driver::ErrorStatus status, std::size_t bytesWritten)
+        [&uartSocket, &ch](const embxx::error::ErrorStatus& es, std::size_t bytesWritten)
         {
-            GASSERT(status == embxx::driver::ErrorStatus::Success);
+            GASSERT(!es);
             GASSERT(bytesWritten == 1);
-            static_cast<void>(status);
+            static_cast<void>(es);
             static_cast<void>(bytesWritten);
             readChar(uartSocket, ch);
         });

@@ -1,5 +1,5 @@
-function (bin_led_flash)
-    set (name "01_led_flash")
+function (bin_uart1_echo)
+    set (name "06_i2c0_eeprom")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
@@ -9,7 +9,7 @@ function (bin_led_flash)
         ${STARTUP_LIB_NAME}
         ${DEVICE_LIB_NAME}
         ${STDLIB_STUB_LIB_NAME}
-        gcc)
+        "gcc")
 
     add_executable(${name} ${src})
     target_link_libraries (${name} ${link})
@@ -18,4 +18,4 @@ endfunction ()
 
 #################################################################
 
-bin_led_flash()
+bin_uart1_echo()

@@ -59,3 +59,8 @@ Current applications are:
         The UART1 configuration is:
         Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.
         The Button configuration: GPIO 23, active (pressed) low.
+        
+06_i2c0_eeprom - This application demonstrates parallel access to two eeproms
+        via I2C0 interface. It also uses UART1 to log its read/write operations.
+        The I2C0 is configured to run with 100Hz clock speed and the 
+        uart configuration is: Baud: 115200; Parity: None; Stop bits: 1; Flow control: off.

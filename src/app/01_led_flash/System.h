@@ -46,7 +46,7 @@ public:
         TimerDevice,
         EventLoop,
         NumOfTimers,
-        embxx::util::StaticFunction<void (embxx::driver::ErrorStatus), 32> > TimerMgr;
+        embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)> > TimerMgr;
 
     typedef component::OnBoardLed<Gpio> Led;
 

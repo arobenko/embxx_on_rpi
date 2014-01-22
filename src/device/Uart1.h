@@ -21,6 +21,8 @@
 
 #include "embxx/util/Assert.h"
 #include "embxx/util/StaticFunction.h"
+#include "embxx/error/ErrorStatus.h"
+#include "embxx/device/context.h"
 
 #include "Function.h"
 
@@ -28,8 +30,8 @@ namespace device
 {
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler = embxx::util::StaticFunction<void ()>,
-          typename TCanWriteHandler = embxx::util::StaticFunction<void ()> >
+          typename TCanDoHandler = embxx::util::StaticFunction<void ()>,
+          typename TOpCompleteHandler = embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&)> >
 class Uart1
 {
 public:
@@ -37,10 +39,15 @@ public:
     typedef char CharType;
 
     typedef TInterruptMgr InterruptMgr;
-    typedef TCanReadHandler CanReadHandler;
-    typedef TCanWriteHandler CanWriteHandler;
+    typedef TCanDoHandler CanReadHandler;
+    typedef TCanDoHandler CanWriteHandler;
+    typedef TOpCompleteHandler ReadCompleteHandler;
+    typedef TOpCompleteHandler WriteCompleteHandler;
 
     typedef typename InterruptMgr::IrqId IrqId;
+
+    typedef embxx::device::context::EventLoop EventLoopContext;
+    typedef embxx::device::context::Interrupt InterruptContext;
 
     Uart1(InterruptMgr& interruptMgr, Function& funcDev, unsigned sysClock);
 
@@ -48,25 +55,46 @@ public:
     static void setWriteEnabled(bool enabled);
     void configBaud(unsigned baud);
 
-    static void setReadInterruptEnabled(bool enabled);
-    static void setWriteInterruptEnabled(bool enabled);
-    static bool canRead();
-    static bool canWrite();
-    static CharType read();
-    static void write(CharType value);
-
     template <typename TFunc>
     void setCanReadHandler(TFunc&& func);
 
     template <typename TFunc>
     void setCanWriteHandler(TFunc&& func);
 
+    template <typename TFunc>
+    void setReadCompleteHandler(TFunc&& func);
+
+    template <typename TFunc>
+    void setWriteCompleteHandler(TFunc&& func);
+
+    void startRead(std::size_t length, EventLoopContext context);
+
+    template <typename TContext>
+    bool cancelRead(TContext context);
+
+    void startWrite(std::size_t length, EventLoopContext context);
+    bool cancelWrite(EventLoopContext context);
+
+    bool canRead(InterruptContext context);
+    bool canWrite(InterruptContext context);
+    CharType read(InterruptContext context);
+    void write(CharType value, InterruptContext context);
+
 private:
+    bool cancelReadInternal();
+    static void setReadInterruptEnabled(bool enabled);
+    static void setWriteInterruptEnabled(bool enabled);
     void interruptHandler();
+    static bool isReadInterruptEnabled();
+    static bool isWriteInterruptEnabled();
 
     unsigned sysClock_;
     CanReadHandler canReadHandler_;
     CanWriteHandler canWriteHandler_;
+    ReadCompleteHandler readCompleteHandler_;
+    WriteCompleteHandler writeCompleteHandler_;
+    std::size_t remainingReadCount_;
+    std::size_t remainingWriteCount_;
 
     typedef std::uint32_t EntryType;
     typedef Function::PinIdxType PinIdxType;
@@ -166,13 +194,16 @@ private:
 
 // Implementation
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::Uart1(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+Uart1(
     InterruptMgr& interruptMgr,
     Function& funcDev,
     unsigned sysClock)
-    : sysClock_(sysClock)
+    : sysClock_(sysClock),
+      remainingReadCount_(0),
+      remainingWriteCount_(0)
 {
     funcDev.configure(LineTXD1, AltFuncTXD1);
     funcDev.configure(LineRXD1, AltFuncRXD1);
@@ -201,27 +232,30 @@ Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::Uart1(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setReadEnabled(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setReadEnabled(
     bool enabled)
 {
     setBits(pAUX_MU_CNTL_REG, pAUX_MU_CNTL_REG_UsedBits, enabled, ReceiverEnablePos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setWriteEnabled(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setWriteEnabled(
     bool enabled)
 {
     setBits(pAUX_MU_CNTL_REG, pAUX_MU_CNTL_REG_UsedBits, enabled, TransmitterEnablePos);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::configBaud(
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+configBaud(
     unsigned baud)
 {
     auto regValue = ((sysClock_ / baud) / 8) - 1;
@@ -230,111 +264,237 @@ void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::configBaud(
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setReadInterruptEnabled(
-    bool enabled)
-{
-    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableRxInterruptPos);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setWriteInterruptEnabled(
-    bool enabled)
-{
-    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableTxInterruptPos);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-bool Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::canRead()
-{
-    return ((*pAUX_MU_LSR_REG & genMask(DataReadyPos)) != 0);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-bool Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::canWrite()
-{
-    return ((*pAUX_MU_LSR_REG & genMask(TransmitterEmptyPos)) != 0);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-typename Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::CharType
-Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::read()
-{
-    GASSERT(canRead());
-    return static_cast<CharType>(
-        *pAUX_MU_IO_REG & genMask(IoDataPos, IoDataLen));
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::write(
-    CharType value)
-{
-    GASSERT(canWrite());
-    *pAUX_MU_IO_REG =
-        static_cast<EntryType>(value) & genMask(IoDataPos, IoDataLen);
-}
-
-template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
 template <typename TFunc>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setCanReadHandler(
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setCanReadHandler(
     TFunc&& func)
 {
     canReadHandler_ = std::forward<TFunc>(func);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
 template <typename TFunc>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::setCanWriteHandler(
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setCanWriteHandler(
     TFunc&& func)
 {
     canWriteHandler_ = std::forward<TFunc>(func);
 }
 
 template <typename TInterruptMgr,
-          typename TCanReadHandler,
-          typename TCanWriteHandler>
-void Uart1<TInterruptMgr, TCanReadHandler, TCanWriteHandler>::interruptHandler()
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TFunc>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setReadCompleteHandler(
+    TFunc&& func)
 {
-    if (((*pAUX_MU_IER_REG & genMask(EnableRxInterruptPos)) != 0) &&
-         ((*pAUX_MU_IIR_REG & genMask(RxInterruptPos)) != 0) &&
-         (canRead())) {
-        if (canReadHandler_) {
+    readCompleteHandler_ = std::forward<TFunc>(func);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TFunc>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setWriteCompleteHandler(
+    TFunc&& func)
+{
+    writeCompleteHandler_ = std::forward<TFunc>(func);
+}
+
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+startRead(std::size_t length, EventLoopContext context)
+{
+    static_cast<void>(context);
+    GASSERT(!isReadInterruptEnabled());
+    GASSERT(remainingReadCount_ == 0);
+    GASSERT(0 < length);
+    remainingReadCount_ = length;
+    setReadInterruptEnabled(true);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+template <typename TContext>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+cancelRead(TContext context)
+{
+    static_cast<void>(context);
+    return cancelReadInternal(); // The functionality is the same
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+startWrite(std::size_t length, EventLoopContext context)
+{
+    static_cast<void>(context);
+    GASSERT(!isWriteInterruptEnabled());
+    GASSERT(remainingWriteCount_ == 0);
+    GASSERT(0 < length);
+    remainingWriteCount_ = length;
+    setWriteInterruptEnabled(true);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+cancelWrite(EventLoopContext context)
+{
+    static_cast<void>(context);
+    setWriteInterruptEnabled(false);
+    bool result = (0 < remainingWriteCount_);
+    remainingWriteCount_ = 0;
+    return result;
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+canRead(InterruptContext context)
+{
+    static_cast<void>(context);
+    return (((*pAUX_MU_LSR_REG & genMask(DataReadyPos)) != 0) &&
+            ((0 < remainingReadCount_)));
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+canWrite(InterruptContext context)
+{
+    static_cast<void>(context);
+    return (((*pAUX_MU_LSR_REG & genMask(TransmitterEmptyPos)) != 0) &&
+            (0 < remainingWriteCount_));
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+typename Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::CharType
+Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+read(InterruptContext context)
+{
+    static_cast<void>(context);
+    GASSERT(canRead(context));
+    --remainingReadCount_;
+    return static_cast<CharType>(
+        *pAUX_MU_IO_REG & genMask(IoDataPos, IoDataLen));
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+write(CharType value, InterruptContext context)
+{
+    static_cast<void>(context);
+    GASSERT(canWrite(context));
+    --remainingWriteCount_;
+    *pAUX_MU_IO_REG =
+        static_cast<EntryType>(value) & genMask(IoDataPos, IoDataLen);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+cancelReadInternal()
+{
+    setReadInterruptEnabled(false);
+    bool result = (0 < remainingReadCount_);
+    remainingReadCount_ = 0;
+    return result;
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setReadInterruptEnabled(
+    bool enabled)
+{
+    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableRxInterruptPos);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+setWriteInterruptEnabled(
+    bool enabled)
+{
+    setBits(pAUX_MU_IER_REG, pAUX_MU_IER_REG_UsedBits, enabled, EnableTxInterruptPos);
+}
+
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+void Uart1<TInterruptMgr, TCanDoHandler,  TOpCompleteHandler>::
+interruptHandler()
+{
+    if (((*pAUX_MU_IIR_REG & genMask(RxInterruptPos)) != 0) &&
+         (isReadInterruptEnabled())) {
+
+        if (canRead(InterruptContext())) {
+            GASSERT(canReadHandler_);
             canReadHandler_();
         }
-        else {
-           // Clear the RX queue
-           *pAUX_MU_IIR_REG =
-               genMask(FifoEnablePos, FifoEnableLen) |
-               genMask(RxInterruptPos);
-           setReadInterruptEnabled(false);
+
+        if (remainingReadCount_ == 0) {
+            setReadInterruptEnabled(false);
+            GASSERT(readCompleteHandler_);
+            readCompleteHandler_(embxx::error::ErrorCode::Success);
         }
     }
 
-    if (((*pAUX_MU_IER_REG & genMask(EnableTxInterruptPos)) != 0) &&
-        ((*pAUX_MU_IIR_REG & genMask(TxInterruptPos)) != 0) &&
-        (canWrite())) {
-        if (canWriteHandler_) {
+    if (((*pAUX_MU_IIR_REG & genMask(TxInterruptPos)) != 0) &&
+        (isWriteInterruptEnabled())) {
+
+        if (canWrite(InterruptContext())) {
+            GASSERT(canWriteHandler_);
             canWriteHandler_();
         }
-        else {
+
+        if (remainingWriteCount_ == 0) {
             setWriteInterruptEnabled(false);
+            GASSERT(writeCompleteHandler_);
+            writeCompleteHandler_(embxx::error::ErrorCode::Success);
         }
     }
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+isReadInterruptEnabled()
+{
+    return ((*pAUX_MU_IER_REG & genMask(EnableRxInterruptPos)) != 0);
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Uart1<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
+isWriteInterruptEnabled()
+{
+    return ((*pAUX_MU_IER_REG & genMask(EnableTxInterruptPos)) != 0);
 }
 
 }  // namespace device

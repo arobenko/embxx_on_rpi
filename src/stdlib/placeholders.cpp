@@ -25,6 +25,9 @@ namespace placeholders
 {
 
 decltype(std::placeholders::_1) _1;
+decltype(std::placeholders::_2) _2;
+decltype(std::placeholders::_3) _3;
+decltype(std::placeholders::_4) _4;
 
 }  // namespace placeholders
 

@@ -100,7 +100,7 @@ private:
     void sendMessage(const MsgBase& msg);
     void startRead();
     void scheduleRead(std::size_t lenth);
-    void readHandler(embxx::io::ErrorStatus status);
+    void readHandler(const embxx::error::ErrorStatus& status);
 
     System& system_;
     Timer heartbeatTimer_;
