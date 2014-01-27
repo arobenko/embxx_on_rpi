@@ -14,7 +14,7 @@ endfunction ()
 
 # Make sure there are not "-D or -O" options
 set (CMAKE_BUILD_TYPE "Debug")
-ar_add_asm_flags ("-march=armv6z")
+embxx_add_asm_flags ("-march=armv6z")
 enable_language (ASM)
 
 lib_startup ()
