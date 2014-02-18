@@ -1,3 +1,4 @@
+
 set (LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/raspberrypi.ld)
 
 #################################################################
@@ -31,6 +32,13 @@ endfunction ()
 add_subdirectory (asm)
 
 embxx_add_c_cxx_flags ("-march=armv6z")
+
+if (TEST_CPP)
+    add_subdirectory (test_cpp)
+    return()
+endif ()
+
+
 embxx_add_c_cxx_flags ("-fno-threadsafe-statics")
 
 include_directories (

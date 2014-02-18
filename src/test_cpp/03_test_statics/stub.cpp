@@ -1,5 +1,5 @@
 //
-// Copyright 2013 (C). Alex Robenko. All rights reserved.
+// Copyright 2014 (C). Alex Robenko. All rights reserved.
 //
 
 // This file is free software: you can redistribute it and/or modify
@@ -16,21 +16,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-// Virtual destructors require also operator delete, in case they are
-// invoked using delete operator.
-void operator delete(void*)
-{
-    while (true) {}
-}
-
-// Compiler requires this function when there are pure virtual functions
-extern "C" void __cxa_pure_virtual()
-{
-    while (true) {}
-}
-
-// Compiler requires this function when there are static objects that
-// require custom destructors
+// This function is required to register the call for the destructor
+// of static object
 extern "C" int __aeabi_atexit(
     void *object,
     void (*destructor)(void *),
@@ -42,10 +29,6 @@ extern "C" int __aeabi_atexit(
     return 0;
 }
 
-// Compiler requires this symbol when there are static objects that
-// require custom destructors
+// The pointer to this variable will be passed to __aeabi_atexit
 void* __dso_handle = nullptr;
-
-
-
 

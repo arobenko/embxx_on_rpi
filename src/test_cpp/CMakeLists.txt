@@ -1,0 +1,5 @@
+add_subdirectory (01_test_simple)
+add_subdirectory (02_test_vector)
+add_subdirectory (03_test_statics)
+add_subdirectory (04_test_abstract_class)
+add_subdirectory (05_test_templates)

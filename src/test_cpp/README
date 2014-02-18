@@ -1,0 +1,39 @@
+This directory contains test applications that are used to inspect output of
+the compiler. They should not be used on an actual platform. The applications
+are: 
+
+01_test_simple
+-----------------
+Simple application with infinite loop in main. It's purpose is to see what 
+stubs may be required to get the applicatio successfully compiled, and after
+the successful compilation to inspect the compiler output.
+
+02_test_vector
+-----------------
+Application that pushes some values into std::vector. The purpose of this
+application is to see what stub functions may be required when dynamic memory
+allocation and/or C++ exceptions are used as well as inspect the differences
+between C and C++ heaps.
+
+03_test_statics
+-----------------
+This application defines two static objects, one in the global space and other
+inside the accessor function. It should be used to inspect the initialisation
+process of these static objects.
+
+04_test_abstract_class
+-----------------
+The purpose of this application is to analyse what code is generated and get to
+know what stub functions are required in case there is abstract class with  
+virtual functions (including virtual destructors).
+
+05_test_templates
+-----------------
+The purpose of this application is to verify the possible code bloating when
+templates are used.
+
+
+
+
+
+    
