@@ -108,7 +108,7 @@ void writeFunc(
 
             if (err) {
                 SLOG(log, embxx::util::log::Error,
-                    "W (0x" << embxx::io::hex << embxx::io::width(0) <<
+                    "W (0x" << embxx::io::hex << embxx::io::setw(0) <<
                     eeprom.getDeviceId() << ") : Failed with error " <<
                     static_cast<int>(err.code()));
                 return;
@@ -118,14 +118,14 @@ void writeFunc(
             static_cast<void>(bytesTransferred);
             auto writtenDataCount = writeCount - sizeof(address);
             SLOG(log, embxx::util::log::Info,
-                "W (0x" << embxx::io::hex << embxx::io::width(0) <<
+                "W (0x" << embxx::io::hex << embxx::io::setw(0) <<
                 eeprom.getDeviceId() << ") : [0x" <<
-                embxx::io::fill('0') << embxx::io::width(sizeof(address) * 2) <<
+                embxx::io::setfill('0') << embxx::io::setw(sizeof(address) * 2) <<
                 address << " - 0x" << address + (writtenDataCount - 1) <<
-                "] : {0x" << embxx::io::width(sizeof(System::I2C::CharType) * 2) <<
+                "] : {0x" << embxx::io::setw(sizeof(System::I2C::CharType) * 2) <<
                 static_cast<unsigned>(buf[sizeof(address)]) << " .. 0x" <<
                 static_cast<unsigned>(buf[writeCount - 1]) << "} " <<
-                embxx::io::width(0) << embxx::io::dec << writtenDataCount << " bytes");
+                embxx::io::setw(0) << embxx::io::dec << writtenDataCount << " bytes");
 
             writeFunc(eeprom, address + writtenDataCount, buf, bufSize, maxAddress);
         });
@@ -152,7 +152,7 @@ void readFunc(
             auto& log = System::instance().log();
             if (err) {
                 SLOG(log, embxx::util::log::Error,
-                    "R (0x" << embxx::io::hex << embxx::io::width(0) <<
+                    "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                     eeprom.getDeviceId() << ") : Failed to set address with error " <<
                     static_cast<int>(err.code()));
                 return;
@@ -169,7 +169,7 @@ void readFunc(
 
                     if (err) {
                         SLOG(log, embxx::util::log::Error,
-                            "R (0x" << embxx::io::hex << embxx::io::width(0) <<
+                            "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                             eeprom.getDeviceId() << ") : Failed to read with error " <<
                             static_cast<int>(err.code()));
                         return;
@@ -180,14 +180,14 @@ void readFunc(
 
                     auto readBuf = &buf[sizeof(address)];
                     SLOG(log, embxx::util::log::Info,
-                        "R (0x" << embxx::io::hex << embxx::io::width(0) <<
+                        "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                         eeprom.getDeviceId() << ") : [0x" <<
-                        embxx::io::fill('0') << embxx::io::width(sizeof(address) * 2) <<
+                        embxx::io::setfill('0') << embxx::io::setw(sizeof(address) * 2) <<
                         address << " - 0x" << address + (readCount - 1) <<
-                        "] : {0x" << embxx::io::width(sizeof(System::I2C::CharType) * 2) <<
+                        "] : {0x" << embxx::io::setw(sizeof(System::I2C::CharType) * 2) <<
                         static_cast<unsigned>(readBuf[0]) << " .. 0x" <<
                         static_cast<unsigned>(readBuf[readCount - 1]) << "} " <<
-                        embxx::io::width(0) << embxx::io::dec << readCount << " bytes");
+                        embxx::io::setw(0) << embxx::io::dec << readCount << " bytes");
 
                     if (!verifySeqCorrect(&readBuf[0], readCount)) {
                         SLOG(log, embxx::util::log::Error,
