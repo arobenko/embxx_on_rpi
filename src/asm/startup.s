@@ -16,17 +16,17 @@
 ;@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 .extern __stack;
-.extern __bss_start
-.extern __bss_end
+.extern __bss_start__
+.extern __bss_end__
 .extern __init_array_start
 .extern __init_array_end
 .extern main
 .extern interruptHandler
 
 	.section .init
-	.globl _start
+	.globl _entry
 
-_start:
+_entry:
 
     ldr pc,reset_handler_ptr        ;@  Processor Reset handler
     ldr pc,undefined_handler_ptr    ;@  Undefined instruction handler
@@ -52,7 +52,7 @@ reset:
     cpsid if
 
     ;@ Copy interrupt vector to its place
-    ldr r0,=_start
+    ldr r0,=_entry
     mov r1,#0x0000
 
     ;@  Here we copy the branching instructions
@@ -82,8 +82,8 @@ reset:
     mov sp,r0
 
     ;@ Zero bss section
-    ldr r0, =__bss_start
-    ldr r1, =__bss_end
+    ldr r0, =__bss_start__
+    ldr r1, =__bss_end__
     mov r2, #0
 
 bss_zero_loop:

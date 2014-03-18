@@ -97,7 +97,7 @@ void Session::scheduleHeartbeat()
     GASSERT(heartbeatTimer_.isValid());
     heartbeatTimer_.asyncWait(
         HeartbeatPeriod,
-        [this](const embxx::error::ErrorStatus err)
+        [this](const embxx::error::ErrorStatus& err)
         {
             if (err) {
                 return;

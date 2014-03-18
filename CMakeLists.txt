@@ -11,8 +11,8 @@ execute_process (
 set (CMAKE_MODULE_PATH "${EXTERNALS_DIR}/embxx/cmake")         
 include (AR_AllExtras)
     
-ar_add_cpp11_support ()
-ar_set_default_compiler_options ()
+embxx_add_cpp11_support ()
+embxx_set_default_compiler_options ()
 
 set (CMAKE_SYSTEM_NAME "RPi")
 if ("${CROSS_COMPILE}" STREQUAL "")
