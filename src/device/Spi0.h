@@ -227,10 +227,10 @@ Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::Spi0(
     Mode mode)
     : remainingReadLen_(0),
       remainingWriteLen_(0),
-      csCache_(0),
-      fillChar_(0),
       readFifoSize_(0),
       writeFifoSize_(0),
+      csCache_(0),
+      fillChar_(0),
       readOpInProgress_(false),
       writeOpInProgress_(false)
 {
@@ -516,6 +516,7 @@ Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::read(
     static_cast<void>(context);
     GASSERT(canRead(context));
     --readFifoSize_;
+    --remainingReadLen_;
     return static_cast<CharType>(*pSPI0_FIFO);
 }
 
@@ -529,6 +530,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::write(
     static_cast<void>(context);
     GASSERT(canWrite(context));
     --writeFifoSize_;
+    --remainingWriteLen_;
     *pSPI0_FIFO = value;
 }
 

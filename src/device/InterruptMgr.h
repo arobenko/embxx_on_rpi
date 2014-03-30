@@ -45,7 +45,7 @@ void disable()
 
 }  // namespace interrupt
 
-template <typename THandler = embxx::util::StaticFunction<void (), 16> >
+template <typename THandler = embxx::util::StaticFunction<void ()> >
 class InterruptMgr
 {
 public:
