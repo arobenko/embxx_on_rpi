@@ -100,8 +100,8 @@ public:
         std::size_t length,
         InterruptContext context);
 
-    template <typename TContext>
-    bool cancelRead(TContext context);
+    bool cancelRead(EventLoopContext context);
+    bool cancelRead(InterruptContext context);
 
     void startWrite(
         DeviceIdType id,
@@ -113,8 +113,8 @@ public:
         std::size_t length,
         InterruptContext context);
 
-    template <typename TContext>
-    bool cancelWrite(TContext context);
+    bool cancelWrite(EventLoopContext context);
+    bool cancelWrite(InterruptContext context);
 
     bool suspend(EventLoopContext context);
     void resume(EventLoopContext context);
@@ -129,6 +129,7 @@ private:
     typedef typename InterruptMgr::IrqId IrqId;
 
     void selectChip(DeviceIdType id);
+    DeviceIdType getChip() const;
     void startReadInternal(DeviceIdType id, std::size_t length);
     void startWriteInternal(DeviceIdType id, std::size_t length);
     bool cancelReadInternal();
@@ -143,7 +144,10 @@ private:
     void reportWriteComplete(const embxx::error::ErrorStatus& es);
     void readFromFifo(std::size_t maxCount);
     void writeToFifo(std::size_t maxCount);
+    bool pendingReadOp() const;
+    bool pendingWriteOp() const;
 
+    InterruptMgr& interruptMgr_;
     CanReadHandler canReadHandler_;
     CanWriteHandler canWriteHandler_;
     ReadCompleteHandler readCompleteHandler_;
@@ -152,10 +156,10 @@ private:
     std::size_t remainingWriteLen_;
     std::size_t readFifoSize_;
     std::size_t writeFifoSize_;
-    EntryType csCache_;
+    volatile EntryType csCache_;
     CharType fillChar_;
-    bool readOpInProgress_;
-    bool writeOpInProgress_;
+    volatile bool readOpInProgress_;
+    volatile bool writeOpInProgress_;
 
     typedef Function::PinIdxType PinIdxType;
     typedef Function::FuncSel FuncSel;
@@ -203,6 +207,8 @@ private:
     static const EntryType SPI0_CS_TXD = genMask(SPI0_CS_TXD_Pos);
     static const EntryType SPI0_CS_RXR = genMask(SPI0_CS_RXR_Pos);
 
+    static const EntryType TranfserActiveMask = SPI0_CS_TA | SPI0_CS_INTD | SPI0_CS_INTR;
+
 
     static const std::size_t pSPI0_CS_FifoNeedsReadStatusPos = 19;
 
@@ -225,7 +231,8 @@ Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::Spi0(
     InterruptMgr& interruptMgr,
     Function& funcDev,
     Mode mode)
-    : remainingReadLen_(0),
+    : interruptMgr_(interruptMgr),
+      remainingReadLen_(0),
       remainingWriteLen_(0),
       readFifoSize_(0),
       writeFifoSize_(0),
@@ -247,8 +254,6 @@ Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::Spi0(
     setMode(mode);
 
     *pSPI0_CS = csCache_ | SPI0_CS_CLEAR;
-
-    interruptMgr.enableInterrupt(IrqId::IrqId_SPI);
 }
 
 template <typename TInterruptMgr,
@@ -405,6 +410,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startRead(
     static_cast<void>(context);
     disableInterrupts();
     startReadInternal(id, length);
+    enableInterrupts();
 }
 
 template <typename TInterruptMgr,
@@ -422,9 +428,21 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startRead(
 template <typename TInterruptMgr,
           typename TCanDoHandler,
           typename TOpCompleteHandler>
-template <typename TContext>
 bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelRead(
-    TContext context)
+    EventLoopContext context)
+{
+    static_cast<void>(context);
+    disableInterrupts();
+    bool result = cancelReadInternal();
+    enableInterrupts();
+    return result;
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelRead(
+    InterruptContext context)
 {
     static_cast<void>(context);
     return cancelReadInternal();
@@ -441,6 +459,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWrite(
     static_cast<void>(context);
     disableInterrupts();
     startWriteInternal(id, length);
+    enableInterrupts();
 }
 
 template <typename TInterruptMgr,
@@ -458,9 +477,21 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWrite(
 template <typename TInterruptMgr,
           typename TCanDoHandler,
           typename TOpCompleteHandler>
-template <typename TContext>
 bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWrite(
-    TContext context)
+    EventLoopContext context)
+{
+    static_cast<void>(context);
+    disableInterrupts();
+    bool result = cancelWriteInternal();
+    enableInterrupts();
+    return result;
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWrite(
+    InterruptContext context)
 {
     static_cast<void>(context);
     return cancelWriteInternal();
@@ -473,7 +504,7 @@ bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::suspend(
     EventLoopContext context)
 {
     disableInterrupts();
-    return (readOpInProgress_ || writeOpInProgress_);
+    return (pendingReadOp() || pendingWriteOp());
 }
 
 template <typename TInterruptMgr,
@@ -482,7 +513,7 @@ template <typename TInterruptMgr,
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::resume(
     EventLoopContext context)
 {
-    GASSERT(readOpInProgress_ || writeOpInProgress_);
+    GASSERT(pendingReadOp() || pendingWriteOp());
     enableInterrupts();
 }
 
@@ -543,7 +574,16 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::selectChip(
     GASSERT(id < SupportedDeviceIdsCount);
 
     csCache_ &= ~SPI0_CS_CS;
-    csCache_ |= (id << SPI0_CS_CS_Len) & SPI0_CS_CS;
+    csCache_ |= (id << SPI0_CS_CS_Pos) & SPI0_CS_CS;
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+typename Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::DeviceIdType
+Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::getChip() const
+{
+    return (csCache_ & SPI0_CS_CS) >> SPI0_CS_CS_Pos;
 }
 
 template <typename TInterruptMgr,
@@ -555,8 +595,15 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startReadInternal(
 {
     GASSERT(remainingReadLen_ == 0);
     GASSERT(0 < length);
+    GASSERT(!readOpInProgress_);
     remainingReadLen_ = length;
-    startTransfer(id);
+    if (!pendingWriteOp()) {
+        startTransfer(id);
+    }
+    else {
+        GASSERT(getChip() == id);
+        GASSERT((csCache_ & TranfserActiveMask) == TranfserActiveMask);
+    }
 }
 
 template <typename TInterruptMgr,
@@ -568,8 +615,16 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWriteInternal(
 {
     GASSERT(remainingWriteLen_ == 0);
     GASSERT(0 < length);
+    GASSERT(!writeOpInProgress_);
     remainingWriteLen_ = length;
-    startTransfer(id);
+
+    if (!pendingReadOp()) {
+        startTransfer(id);
+    }
+    else {
+        GASSERT(getChip() == id);
+        GASSERT((csCache_ & TranfserActiveMask) == TranfserActiveMask);
+    }
 }
 
 template <typename TInterruptMgr,
@@ -577,10 +632,8 @@ template <typename TInterruptMgr,
           typename TOpCompleteHandler>
 bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelReadInternal()
 {
-    disableInterrupts();
-
     bool result = false;
-    if (readOpInProgress_) {
+    if (pendingReadOp()) {
         remainingReadLen_= 0;
         readOpInProgress_ = false;
         result = true;
@@ -595,10 +648,8 @@ template <typename TInterruptMgr,
           typename TOpCompleteHandler>
 bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWriteInternal()
 {
-    disableInterrupts();
-
     bool result = false;
-    if (writeOpInProgress_) {
+    if (pendingWriteOp()) {
         remainingWriteLen_= 0;
         writeOpInProgress_ = false;
         result = true;
@@ -613,8 +664,7 @@ template <typename TInterruptMgr,
           typename TOpCompleteHandler>
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::disableInterrupts()
 {
-    csCache_ &= ~(SPI0_CS_INTD | SPI0_CS_INTR);
-    *pSPI0_CS = csCache_;
+    interruptMgr_.disableInterrupt(IrqId::IrqId_SPI);
 }
 
 template <typename TInterruptMgr,
@@ -622,8 +672,7 @@ template <typename TInterruptMgr,
           typename TOpCompleteHandler>
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::enableInterrupts()
 {
-    csCache_ |= (SPI0_CS_INTD | SPI0_CS_INTR);
-    *pSPI0_CS = csCache_;
+    interruptMgr_.enableInterrupt(IrqId::IrqId_SPI);
 }
 
 template <typename TInterruptMgr,
@@ -631,10 +680,8 @@ template <typename TInterruptMgr,
           typename TOpCompleteHandler>
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::finaliseCancel()
 {
-    if (writeOpInProgress_ || readOpInProgress_) {
-        enableInterrupts();
-    }
-    else {
+    if ((!pendingReadOp()) &&
+        (!pendingWriteOp())) {
         stopTransfer();
         *pSPI0_CS = csCache_ | SPI0_CS_CLEAR;
     }
@@ -646,11 +693,9 @@ template <typename TInterruptMgr,
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startTransfer(
     DeviceIdType id)
 {
-    static const auto IntMask = (SPI0_CS_INTD | SPI0_CS_INTR);
-    GASSERT((csCache_ & IntMask) == 0);
-
+    GASSERT((csCache_ & TranfserActiveMask) == 0);
     selectChip(id);
-    csCache_ |= (IntMask | SPI0_CS_TA);
+    csCache_ |= TranfserActiveMask;
     *pSPI0_CS = csCache_;
 }
 
@@ -659,7 +704,7 @@ template <typename TInterruptMgr,
           typename TOpCompleteHandler>
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::stopTransfer()
 {
-    csCache_ &= ~(SPI0_CS_INTD | SPI0_CS_INTR | SPI0_CS_TA);
+    csCache_ &= ~(TranfserActiveMask);
     *pSPI0_CS = csCache_;
 }
 
@@ -695,9 +740,10 @@ interruptHandler()
             return;
         }
 
-        if (remainingWriteLen_ == 0) {
+        if (!pendingWriteOp()) {
+            GASSERT(pendingReadOp());
             // No write, but pending read
-            GASSERT(!writeOpInProgress_);
+            readOpInProgress_ = true;
             readFromFifo(MaxFifoLen);
 
             if ((readOpInProgress_) && (remainingReadLen_ == 0)) {
@@ -724,7 +770,7 @@ interruptHandler()
         writeOpInProgress_ = true;
         auto writeCount =
             std::min(
-                std::max(remainingReadLen_, remainingWriteLen_),
+                remainingWriteLen_,
                 MaxFifoLen);
         writeToFifo(writeCount); // will write provided data + fill character if needed
         return;
@@ -739,7 +785,7 @@ interruptHandler()
 
         auto writeCount =
             std::min(
-                std::max(remainingReadLen_, remainingWriteLen_),
+                remainingWriteLen_,
                 MidOpFifoLen);
         writeToFifo(writeCount);
         return;
@@ -754,6 +800,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::reportReadComplete(
     const embxx::error::ErrorStatus& es)
 {
     GASSERT(readCompleteHandler_);
+    remainingReadLen_ = 0;
     readOpInProgress_ = false;
     readCompleteHandler_(es);
 }
@@ -765,6 +812,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::reportWriteComplete
     const embxx::error::ErrorStatus& es)
 {
     GASSERT(writeCompleteHandler_);
+    remainingWriteLen_ = 0;
     writeOpInProgress_ = false;
     writeCompleteHandler_(es);
 }
@@ -818,6 +866,22 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::writeToFifo(
         *pSPI0_FIFO = fillChar_;
         --remToWrite;
     }
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::pendingReadOp() const
+{
+    return (readOpInProgress_ || (remainingReadLen_ != 0));
+}
+
+template <typename TInterruptMgr,
+          typename TCanDoHandler,
+          typename TOpCompleteHandler>
+bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::pendingWriteOp() const
+{
+    return (writeOpInProgress_ || (remainingWriteLen_ != 0));
 }
 
 }  // namespace device

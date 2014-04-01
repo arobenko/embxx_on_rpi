@@ -27,11 +27,15 @@ System::System()
     : gpio_(interruptMgr_, func_),
       uart_(interruptMgr_, func_, SysClockFreq),
       spi_(interruptMgr_, func_),
+      spiOpQueue_(spi_),
+      spiCharAdapter_(spiOpQueue_, SpiDevIdx),
       uartDriver_(uart_, el_),
+      spiDriver_(spiCharAdapter_, el_),
       led_(gpio_),
       buf_(uartDriver_),
       stream_(buf_),
-      log_("\r\n", stream_)
+      log_("\r\n", stream_),
+      spiInBuf_(spiDriver_)
 {
     uart_.configBaud(115200);
     uart_.setWriteEnabled(true);

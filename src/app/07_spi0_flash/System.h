@@ -23,6 +23,7 @@
 #include "embxx/util/log/StreamableValueSuffixer.h"
 #include "embxx/util/log/StreamFlushSuffixer.h"
 #include "embxx/driver/Character.h"
+#include "embxx/io/InStreamBuf.h"
 #include "embxx/io/OutStreamBuf.h"
 #include "embxx/io/OutStream.h"
 #include "embxx/device/DeviceOpQueue.h"
@@ -58,19 +59,21 @@ public:
         embxx::util::StaticFunction<void(), sizeof(void*) * 4>,
         embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&)> > Spi;
 
-//    typedef embxx::device::DeviceOpQueue<I2C, 2> I2cOpQueue;
+    typedef embxx::device::DeviceOpQueue<Spi, 1> SpiOpQueue;
 
-//    typedef embxx::device::IdDeviceCharAdapter<I2cOpQueue> CharI2cAdapter;
+    typedef embxx::device::IdDeviceCharAdapter<SpiOpQueue> CharSpiAdapter;
 
     typedef embxx::driver::Character<Uart, EventLoop> UartDriver;
 
-//    typedef embxx::driver::Character<CharI2cAdapter, EventLoop> I2cDriver;
+    typedef embxx::driver::Character<CharSpiAdapter, EventLoop> SpiDriver;
+
+    typedef embxx::io::InStreamBuf<SpiDriver, 512> SpiInStreamBuf;
 
     typedef component::OnBoardLed<Gpio> Led;
 
-    static const std::size_t OutStreamBufSize = 1024;
-    typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
-    typedef embxx::io::OutStream<OutStreamBuf> OutStream;
+    static const std::size_t LogStreamBufSize = 4096;
+    typedef embxx::io::OutStreamBuf<UartDriver, LogStreamBufSize> LogStreamBuf;
+    typedef embxx::io::OutStream<LogStreamBuf> OutStream;
     typedef embxx::util::log::StreamFlushSuffixer<
             embxx::util::log::StreamableValueSuffixer<
                 const OutStream::CharType*,
@@ -91,8 +94,12 @@ public:
     inline Led& led();
     inline Log& log();
 
-    Spi& spi() {
-        return spi_;
+    SpiDriver& spi() {
+        return spiDriver_;
+    }
+
+    SpiInStreamBuf& spiInBuf() {
+        return spiInBuf_;
     }
 
     // TODO: move to private
@@ -108,20 +115,19 @@ private:
     Gpio gpio_;
     Uart uart_;
     Spi spi_;
-//    I2cOpQueue i2cOpQueue_;
-//    CharI2cAdapter i2cCharAdapter1_;
-//    CharI2cAdapter i2cCharAdapter2_;
+    SpiOpQueue spiOpQueue_;
+    CharSpiAdapter spiCharAdapter_;
 
     // Drivers
     UartDriver uartDriver_;
-//    I2cDriver i2cDriver1_;
-//    I2cDriver i2cDriver2_;
+    SpiDriver spiDriver_;
 
     // Components
     Led led_;
-    OutStreamBuf buf_;
+    LogStreamBuf buf_;
     OutStream stream_;
     Log log_;
+    SpiInStreamBuf spiInBuf_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
     static const unsigned InitialSpiFreq = 100000; // 100KHz
