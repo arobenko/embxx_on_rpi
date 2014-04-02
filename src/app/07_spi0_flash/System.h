@@ -130,7 +130,7 @@ private:
     SpiInStreamBuf spiInBuf_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
-    static const unsigned InitialSpiFreq = 100000; // 100KHz
+    static const unsigned InitialSpiFreq = 200000; // 200KHz
 
 };
 

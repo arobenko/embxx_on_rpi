@@ -136,7 +136,6 @@ private:
     bool cancelWriteInternal();
     void disableInterrupts();
     void enableInterrupts();
-    void finaliseCancel();
     void startTransfer(DeviceIdType id);
     void stopTransfer();
     void interruptHandler();
@@ -597,7 +596,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startReadInternal(
     GASSERT(0 < length);
     GASSERT(!readOpInProgress_);
     remainingReadLen_ = length;
-    if (!pendingWriteOp()) {
+    if ((csCache_ & TranfserActiveMask) == 0) {
         startTransfer(id);
     }
     else {
@@ -618,7 +617,7 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWriteInternal(
     GASSERT(!writeOpInProgress_);
     remainingWriteLen_ = length;
 
-    if (!pendingReadOp()) {
+    if ((csCache_ & TranfserActiveMask) == 0) {
         startTransfer(id);
     }
     else {
@@ -639,7 +638,6 @@ bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelReadInternal(
         result = true;
     }
 
-    finaliseCancel();
     return result;
 }
 
@@ -655,7 +653,6 @@ bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWriteInternal
         result = true;
     }
 
-    finaliseCancel();
     return result;
 }
 
@@ -678,25 +675,13 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::enableInterrupts()
 template <typename TInterruptMgr,
           typename TCanDoHandler,
           typename TOpCompleteHandler>
-void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::finaliseCancel()
-{
-    if ((!pendingReadOp()) &&
-        (!pendingWriteOp())) {
-        stopTransfer();
-        *pSPI0_CS = csCache_ | SPI0_CS_CLEAR;
-    }
-}
-
-template <typename TInterruptMgr,
-          typename TCanDoHandler,
-          typename TOpCompleteHandler>
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startTransfer(
     DeviceIdType id)
 {
     GASSERT((csCache_ & TranfserActiveMask) == 0);
     selectChip(id);
     csCache_ |= TranfserActiveMask;
-    *pSPI0_CS = csCache_;
+    *pSPI0_CS = (csCache_ | SPI0_CS_CLEAR);
 }
 
 template <typename TInterruptMgr,
@@ -747,7 +732,6 @@ interruptHandler()
             readFromFifo(MaxFifoLen);
 
             if ((readOpInProgress_) && (remainingReadLen_ == 0)) {
-                stopTransfer(); // no write + no more read
                 reportReadComplete(embxx::error::ErrorCode::Success);
                 return;
             }

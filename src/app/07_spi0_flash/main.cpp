@@ -65,10 +65,10 @@ void processSpiInBuf(
     System::Log& log,
     std::size_t remainingCount)
 {
-    if (remainingCount == 0) {
-        spiInBuf.stop();
-        return;
-    }
+//    if (remainingCount == 0) {
+//        spiInBuf.stop();
+//        return;
+//    }
 
     spiInBuf.asyncWaitDataAvailable(
         1,
@@ -77,7 +77,9 @@ void processSpiInBuf(
             if (!es) {
                 auto iter = spiInBuf.begin();
                 auto byte = embxx::io::readBig<std::uint8_t>(iter);
-                SLOG(log, embxx::util::log::Info, "Byte=0x" << embxx::io::hex << (unsigned)byte);
+                if (byte != 0xff) {
+                    SLOG(log, embxx::util::log::Info, "Byte=0x" << embxx::io::hex << (unsigned)byte);
+                }
                 spiInBuf.consume(1U);
             }
             else {
@@ -114,6 +116,10 @@ int main() {
     auto& spi = system.spi();
     spi.device().device().device().setFillChar(0xff);
 
+    auto& spiInBuf = system.spiInBuf();
+    spiInBuf.start();
+    processSpiInBuf(spiInBuf, log, 512);
+
     spi.asyncWrite(
         &Cmd0[0],
         Cmd0Size,
@@ -122,22 +128,8 @@ int main() {
             SLOG(log, embxx::util::log::Info, "Write 1 complete!");
             GASSERT(!es);
             GASSERT(bytesWritten == Cmd0Size);
-
-            spi.asyncWrite(
-                &Cmd0[0],
-                Cmd0Size,
-                [&log, &spi](const embxx::error::ErrorStatus& es, std::size_t bytesWritten)
-                {
-                    SLOG(log, embxx::util::log::Info, "Write 2 complete!");
-                    GASSERT(!es);
-                    GASSERT(bytesWritten == Cmd0Size);
-                });
-
         });
 
-    auto& spiInBuf = system.spiInBuf();
-    spiInBuf.start();
-    processSpiInBuf(spiInBuf, log, 1024);
 
     device::interrupt::enable();
     auto& el = system.eventLoop();
