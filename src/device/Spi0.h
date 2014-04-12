@@ -143,8 +143,8 @@ private:
     void reportWriteComplete(const embxx::error::ErrorStatus& es);
     void readFromFifo(std::size_t maxCount);
     void writeToFifo(std::size_t maxCount);
-    bool pendingReadOp() const;
-    bool pendingWriteOp() const;
+    bool readOpInProgress() const;
+    bool writeOpInProgress() const;
 
     InterruptMgr& interruptMgr_;
     CanReadHandler canReadHandler_;
@@ -157,8 +157,6 @@ private:
     std::size_t writeFifoSize_;
     volatile EntryType csCache_;
     CharType fillChar_;
-    volatile bool readOpInProgress_;
-    volatile bool writeOpInProgress_;
 
     typedef Function::PinIdxType PinIdxType;
     typedef Function::FuncSel FuncSel;
@@ -236,9 +234,7 @@ Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::Spi0(
       readFifoSize_(0),
       writeFifoSize_(0),
       csCache_(0),
-      fillChar_(0),
-      readOpInProgress_(false),
-      writeOpInProgress_(false)
+      fillChar_(0)
 {
     funcDev.configure(LineCS0, AltFuncAll);
     funcDev.configure(LineCS1, AltFuncAll);
@@ -503,7 +499,7 @@ bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::suspend(
     EventLoopContext context)
 {
     disableInterrupts();
-    return (pendingReadOp() || pendingWriteOp());
+    return (readOpInProgress() || writeOpInProgress());
 }
 
 template <typename TInterruptMgr,
@@ -512,7 +508,7 @@ template <typename TInterruptMgr,
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::resume(
     EventLoopContext context)
 {
-    GASSERT(pendingReadOp() || pendingWriteOp());
+    GASSERT(readOpInProgress() || writeOpInProgress());
     enableInterrupts();
 }
 
@@ -594,7 +590,6 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startReadInternal(
 {
     GASSERT(remainingReadLen_ == 0);
     GASSERT(0 < length);
-    GASSERT(!readOpInProgress_);
     remainingReadLen_ = length;
     if ((csCache_ & TranfserActiveMask) == 0) {
         startTransfer(id);
@@ -614,7 +609,6 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startWriteInternal(
 {
     GASSERT(remainingWriteLen_ == 0);
     GASSERT(0 < length);
-    GASSERT(!writeOpInProgress_);
     remainingWriteLen_ = length;
 
     if ((csCache_ & TranfserActiveMask) == 0) {
@@ -632,9 +626,8 @@ template <typename TInterruptMgr,
 bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelReadInternal()
 {
     bool result = false;
-    if (pendingReadOp()) {
+    if (readOpInProgress()) {
         remainingReadLen_= 0;
-        readOpInProgress_ = false;
         result = true;
     }
 
@@ -647,9 +640,8 @@ template <typename TInterruptMgr,
 bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::cancelWriteInternal()
 {
     bool result = false;
-    if (pendingWriteOp()) {
+    if (writeOpInProgress()) {
         remainingWriteLen_= 0;
-        writeOpInProgress_ = false;
         result = true;
     }
 
@@ -678,10 +670,11 @@ template <typename TInterruptMgr,
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::startTransfer(
     DeviceIdType id)
 {
+    GASSERT(writeOpInProgress() || readOpInProgress());
     GASSERT((csCache_ & TranfserActiveMask) == 0);
     selectChip(id);
     csCache_ |= TranfserActiveMask;
-    *pSPI0_CS = (csCache_ | SPI0_CS_CLEAR);
+    *pSPI0_CS = csCache_;
 }
 
 template <typename TInterruptMgr,
@@ -704,77 +697,54 @@ interruptHandler()
 
     volatile auto csValue = *pSPI0_CS;
 
+    auto readFunc =
+        [this](bool reading, std::size_t limit)
+        {
+            readFromFifo(limit);
+            if (reading && (!readOpInProgress())) {
+                reportReadComplete(embxx::error::ErrorCode::Success);
+            }
+        };
+
+    auto writeFunc =
+        [this](bool writing, std::size_t limit)
+        {
+            writeToFifo(limit); // will write provided data + fill character if needed
+
+            if (writing && (!writeOpInProgress())) {
+                reportWriteComplete(embxx::error::ErrorCode::Success);
+            }
+        };
+
     if ((csValue & SPI0_CS_DONE) != 0) {
 
-        bool stop =
-            (remainingReadLen_ == 0) && (remainingWriteLen_ == 0);
-
-        if (stop) {
+        if ((!readOpInProgress()) && (!writeOpInProgress())) {
             stopTransfer();
-        }
-
-        if ((remainingReadLen_ == 0) && readOpInProgress_) {
-            reportReadComplete(embxx::error::ErrorCode::Success);
-        }
-
-        if ((remainingWriteLen_ == 0) && writeOpInProgress_) {
-            reportWriteComplete(embxx::error::ErrorCode::Success);
-        }
-
-        if (stop) {
             return;
         }
 
-        if (!pendingWriteOp()) {
-            GASSERT(pendingReadOp());
-            // No write, but pending read
-            readOpInProgress_ = true;
-            readFromFifo(MaxFifoLen);
+        if (!writeOpInProgress()) {
 
-            if ((readOpInProgress_) && (remainingReadLen_ == 0)) {
-                reportReadComplete(embxx::error::ErrorCode::Success);
+            readFunc(true, MaxFifoLen);
+
+            if (!readOpInProgress()) {
                 return;
             }
 
-            GASSERT(0 < remainingReadLen_);
-            readOpInProgress_ = true;
-            auto writeCount = std::min(remainingReadLen_, MaxFifoLen);
-            writeToFifo(writeCount); // will write fill character
+            writeFunc(false, MaxFifoLen);
             return;
         }
 
         // First write
-        GASSERT(0 < remainingWriteLen_);
-        readFromFifo(MaxFifoLen); // drain RX fifo
-
-        if (readOpInProgress_ && (remainingReadLen_ == 0)) {
-            reportReadComplete(embxx::error::ErrorCode::Success);
-        }
-
-        writeOpInProgress_ = true;
-        auto writeCount =
-            std::min(
-                remainingWriteLen_,
-                MaxFifoLen);
-        writeToFifo(writeCount); // will write provided data + fill character if needed
+        readFunc(readOpInProgress(), MaxFifoLen);
+        writeFunc(true, MaxFifoLen);
         return;
     }
 
     if ((csValue & SPI0_CS_RXR) != 0) {
-        readFromFifo(MidOpFifoLen);
-        if (readOpInProgress_ && (remainingReadLen_ == 0)) {
-            reportReadComplete(embxx::error::ErrorCode::Success);
-            return;
-        }
-
-        auto writeCount =
-            std::min(
-                remainingWriteLen_,
-                MidOpFifoLen);
-        writeToFifo(writeCount);
-        return;
+        readFunc(readOpInProgress(), MidOpFifoLen);
+        writeFunc(writeOpInProgress(), MidOpFifoLen);
     }
-
 }
 
 template <typename TInterruptMgr,
@@ -785,7 +755,6 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::reportReadComplete(
 {
     GASSERT(readCompleteHandler_);
     remainingReadLen_ = 0;
-    readOpInProgress_ = false;
     readCompleteHandler_(es);
 }
 
@@ -797,7 +766,6 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::reportWriteComplete
 {
     GASSERT(writeCompleteHandler_);
     remainingWriteLen_ = 0;
-    writeOpInProgress_ = false;
     writeCompleteHandler_(es);
 }
 
@@ -855,17 +823,17 @@ void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::writeToFifo(
 template <typename TInterruptMgr,
           typename TCanDoHandler,
           typename TOpCompleteHandler>
-bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::pendingReadOp() const
+bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::readOpInProgress() const
 {
-    return (readOpInProgress_ || (remainingReadLen_ != 0));
+    return (0 < remainingReadLen_);
 }
 
 template <typename TInterruptMgr,
           typename TCanDoHandler,
           typename TOpCompleteHandler>
-bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::pendingWriteOp() const
+bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::writeOpInProgress() const
 {
-    return (writeOpInProgress_ || (remainingWriteLen_ != 0));
+    return (0 < remainingWriteLen_);
 }
 
 }  // namespace device

@@ -71,7 +71,7 @@ public:
 
     typedef component::OnBoardLed<Gpio> Led;
 
-    static const std::size_t LogStreamBufSize = 4096;
+    static const std::size_t LogStreamBufSize = 4096 * 2;
     typedef embxx::io::OutStreamBuf<UartDriver, LogStreamBufSize> LogStreamBuf;
     typedef embxx::io::OutStream<LogStreamBuf> OutStream;
     typedef embxx::util::log::StreamFlushSuffixer<

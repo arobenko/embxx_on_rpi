@@ -19,6 +19,7 @@
 
 #include <cstdint>
 
+#include "embxx/util/Assert.h"
 #include "InterruptMgr.h"
 
 namespace device
@@ -27,18 +28,32 @@ namespace device
 class InterruptLock
 {
 public:
-    InterruptLock() : flags_(0)
+    InterruptLock()
+        : flags_(0)
+#ifndef NDEBUG
+          , locked_(0)
+#endif
     {}
     void lock()
     {
-//        __asm volatile("mrs %0, cpsr" : "=r" (flags_));
+        GASSERT(!locked_);
+        __asm volatile("mrs %0, cpsr" : "=r" (flags_));
         device::interrupt::disable();
+#ifndef NDEBUG
+        locked_ = true;
+#endif
     }
 
     void unlock()
     {
-//        __asm volatile("msr cpsr, %0" : "=r" (flags_));
-        device::interrupt::enable();
+        GASSERT(locked_);
+        if ((flags_ & IntMask) == 0) {
+            // Was previously enabled
+            device::interrupt::enable();
+        }
+#ifndef NDEBUG
+        locked_ = false;
+#endif
     }
 
     void lockInterruptCtx()
@@ -51,7 +66,11 @@ public:
         // Nothing to do
     }
 private:
-    std::uint32_t flags_;
+    volatile std::uint32_t flags_;
+#ifndef NDEBUG
+    bool locked_;
+#endif
+    static const std::uint32_t IntMask = 1U << 7;
 };
 
 class WaitCond
