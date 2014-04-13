@@ -67,7 +67,7 @@ public:
 
     typedef embxx::driver::Character<CharSpiAdapter, EventLoop> SpiDriver;
 
-    typedef embxx::io::InStreamBuf<SpiDriver, 512> SpiInStreamBuf;
+    typedef embxx::io::InStreamBuf<SpiDriver, 4096> SpiInStreamBuf;
 
     typedef component::OnBoardLed<Gpio> Led;
 

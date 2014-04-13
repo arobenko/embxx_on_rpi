@@ -84,7 +84,7 @@ void performInit(unsigned attempt)
     auto& spiInBuf = System::instance().spiInBuf();
     spiInBuf.start();
 
-    static const unsigned DataBufSize = 32;
+    static const unsigned DataBufSize = 128;
     spiInBuf.asyncWaitDataAvailable(
         DataBufSize,
         [&spiInBuf, attempt](const embxx::error::ErrorStatus& es)
@@ -125,8 +125,8 @@ int main() {
     for (volatile int i = 0; i < 5000000; ++i) {}
     led.off();
 
-//    auto& spi = system.spi();
-//    spi.device().device().device().setFillChar(0xff);
+    auto& spi = system.spi();
+    spi.device().device().device().setFillChar(0xff);
 
     performInit(0);
 
