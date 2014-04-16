@@ -519,6 +519,7 @@ bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::canRead(
     InterruptContext context)
 {
     static_cast<void>(context);
+    GASSERT(readFifoSize_ <= remainingReadLen_);
     return ((0 < readFifoSize_) && ((*pSPI0_CS & SPI0_CS_RXD) != 0));
 }
 
@@ -529,6 +530,7 @@ bool Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::canWrite(
     InterruptContext context)
 {
     static_cast<void>(context);
+    GASSERT(writeFifoSize_ <= remainingWriteLen_);
     return ((0 < writeFifoSize_) && ((*pSPI0_CS & SPI0_CS_TXD) != 0));
 }
 
@@ -692,6 +694,11 @@ template <typename TInterruptMgr,
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::
 interruptHandler()
 {
+    if ((!readOpInProgress()) && (!writeOpInProgress())) {
+        stopTransfer();
+        return;
+    }
+
     static const std::size_t MaxFifoLen = 16U;
     static const std::size_t MidOpFifoLen = 12U;
 
@@ -717,11 +724,6 @@ interruptHandler()
         };
 
     if ((csValue & SPI0_CS_DONE) != 0) {
-
-        if ((!readOpInProgress()) && (!writeOpInProgress())) {
-            stopTransfer();
-            return;
-        }
 
         if (!writeOpInProgress()) {
 
@@ -803,6 +805,10 @@ template <typename TInterruptMgr,
 void Spi0<TInterruptMgr, TCanDoHandler, TOpCompleteHandler>::writeToFifo(
     std::size_t maxCount)
 {
+    if ((*pSPI0_CS & SPI0_CS_TXD) == 0) {
+        return;
+    }
+
     auto requestedWrite = std::min(remainingWriteLen_, maxCount);
     writeFifoSize_ = requestedWrite;
 
