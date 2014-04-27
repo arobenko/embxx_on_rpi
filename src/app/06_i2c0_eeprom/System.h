@@ -63,7 +63,15 @@ public:
 
     typedef embxx::device::IdDeviceCharAdapter<I2cOpQueue> CharI2cAdapter;
 
-    typedef embxx::driver::Character<Uart, EventLoop> UartDriver;
+    struct CharacterTraits
+    {
+        typedef std::nullptr_t ReadHandler;
+        typedef embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&, std::size_t)> WriteHandler;
+        typedef std::nullptr_t ReadUntilPred;
+        static const std::size_t ReadQueueSize = 0;
+        static const std::size_t WriteQueueSize = 1;
+    };
+    typedef embxx::driver::Character<Uart, EventLoop, CharacterTraits> UartDriver;
 
     typedef embxx::driver::Character<CharI2cAdapter, EventLoop> I2cDriver;
 
