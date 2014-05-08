@@ -18,6 +18,7 @@
 #include "System.h"
 
 #include <functional>
+#include <chrono>
 
 #include "embxx/util/Assert.h"
 
@@ -74,7 +75,7 @@ void buttonPressed(System::EventLoop& el, TTimer& timer)
     GASSERT(result);
     static_cast<void>(result);
 
-    static const unsigned WaitTime = 1000;
+    static const auto WaitTime = std::chrono::seconds(1);
     timer.asyncWait(
         WaitTime,
         [&led](const embxx::error::ErrorStatus& es)

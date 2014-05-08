@@ -18,13 +18,14 @@
 #include "System.h"
 
 #include <functional>
+#include <chrono>
 
 #include "embxx/util/Assert.h"
 
 namespace
 {
 
-const unsigned LedChangeStateTimeout = 500; // 1/2 second
+const auto LedChangeStateTimeout = std::chrono::milliseconds(500);
 
 template <typename TTimer>
 void ledOff(
@@ -55,7 +56,7 @@ void ledOff(
     led.off();
 
     timer.asyncWait(
-        LedChangeStateTimeout,
+        std::chrono::milliseconds(LedChangeStateTimeout),
         [&timer, &led](const embxx::error::ErrorStatus& status)
         {
             static_cast<void>(status);

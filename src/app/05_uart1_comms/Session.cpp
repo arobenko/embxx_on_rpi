@@ -19,13 +19,14 @@
 
 #include <iterator>
 #include <algorithm>
+#include <chrono>
 
 #include "embxx/util/Assert.h"
 
 namespace
 {
 
-const System::TimerMgr::WaitTimeType HeartbeatPeriod = 2000; // 2 sec
+const auto HeartbeatPeriod = std::chrono::seconds(2);
 
 }  // namespace
 

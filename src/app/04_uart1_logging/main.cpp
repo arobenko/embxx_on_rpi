@@ -18,6 +18,7 @@
 #include "System.h"
 
 #include <functional>
+#include <chrono>
 
 #include "embxx/util/Assert.h"
 
@@ -64,7 +65,7 @@ void performLog(TLog& log, TTimer& timer, std::size_t& counter)
         " (0x" << embxx::io::hex << counter << ")");
 
     // Perform next logging after a timeout
-    static const std::size_t LoggingWaitPeriod = 1000; // 1 sec
+    static const auto LoggingWaitPeriod = std::chrono::seconds(1);
     timer.asyncWait(
         LoggingWaitPeriod,
         std::bind(
