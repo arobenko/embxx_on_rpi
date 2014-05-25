@@ -110,7 +110,7 @@ void writeFunc(
                 SLOG(log, embxx::util::log::Error,
                     "W (0x" << embxx::io::hex << embxx::io::setw(0) <<
                     eeprom.getDeviceId() << ") : Failed with error " <<
-                    static_cast<int>(err.code()));
+                    err);
                 return;
             }
 
@@ -154,7 +154,7 @@ void readFunc(
                 SLOG(log, embxx::util::log::Error,
                     "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                     eeprom.getDeviceId() << ") : Failed to set address with error " <<
-                    static_cast<int>(err.code()));
+                    err);
                 return;
             }
 
@@ -171,7 +171,7 @@ void readFunc(
                         SLOG(log, embxx::util::log::Error,
                             "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                             eeprom.getDeviceId() << ") : Failed to read with error " <<
-                            static_cast<int>(err.code()));
+                            err);
                         return;
                     }
 

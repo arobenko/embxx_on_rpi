@@ -80,7 +80,7 @@ void buttonPressed(System::EventLoop& el, TTimer& timer)
         WaitTime,
         [&led](const embxx::error::ErrorStatus& es)
         {
-            if (es.code() == embxx::error::ErrorCode::Aborted) {
+            if (es == embxx::error::ErrorCode::Aborted) {
                 return;
             }
             led.off();

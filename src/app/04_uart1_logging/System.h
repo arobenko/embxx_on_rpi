@@ -62,9 +62,11 @@ public:
     };
     typedef embxx::driver::Character<Uart, EventLoop, CharacterTraits> UartDriver;
     typedef embxx::driver::TimerMgr<
-            TimerDevice,
-            EventLoop,
-            1> TimerMgr;
+        TimerDevice,
+        EventLoop,
+        1,
+        embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&), sizeof(void*) * 4>
+    > TimerMgr;
 
 
     // Components

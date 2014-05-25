@@ -159,7 +159,7 @@ void Eeprom<TDriver, THandler>::opCompleteCallback(
     const embxx::error::ErrorStatus& err,
     std::size_t bytesTransferred)
 {
-    if (err.code() == embxx::error::ErrorCode::HwProtocolError) {
+    if (err == embxx::error::ErrorCode::HwProtocolError) {
         if (0 < attemptsLimit_) {
             ++attempt_;
             if (attemptsLimit_ <= attempt_) {

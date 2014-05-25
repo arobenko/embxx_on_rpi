@@ -154,7 +154,7 @@ void Session::scheduleRead(std::size_t length)
 
 void Session::readHandler(const embxx::error::ErrorStatus& err)
 {
-    if (err.code() == embxx::error::ErrorCode::Aborted) {
+    if (err == embxx::error::ErrorCode::Aborted) {
         return;
     }
 
