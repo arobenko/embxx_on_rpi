@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <chrono>
 
 #include "embxx/util/Assert.h"
 #include "embxx/util/StaticFunction.h"
@@ -35,6 +36,7 @@ class Timer
 {
 public:
     typedef unsigned WaitTimeType;
+    typedef std::chrono::duration<WaitTimeType, std::milli> WaitTimeUnitDuration;
 
     typedef TInterruptMgr InterruptMgr;
     typedef THandler HandlerFunc;

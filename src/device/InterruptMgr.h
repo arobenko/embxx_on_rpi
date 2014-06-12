@@ -45,7 +45,7 @@ void disable()
 
 }  // namespace interrupt
 
-template <typename THandler = embxx::util::StaticFunction<void (), 16> >
+template <typename THandler = embxx::util::StaticFunction<void ()> >
 class InterruptMgr
 {
 public:
@@ -58,6 +58,7 @@ public:
         IrqId_Gpio3,
         IrqId_Gpio4,
         IrqId_I2C,
+        IrqId_SPI,
         IrqId_NumOfIds // Must be last
     };
 
@@ -166,6 +167,16 @@ InterruptMgr<THandler>::InterruptMgr()
         i2cIrq.disablePtr_ = IrqDisable2;
         i2cIrq.enDisMask_ = static_cast<EntryType>(1) << (53 - 32);
         static_cast<void>(i2cIrq);
+    }
+
+    {
+        auto& spiIrq = irqs_[IrqId_SPI];
+        spiIrq.pendingPtr_ = IrqBasicPending;
+        spiIrq.pendingMask_ = static_cast<EntryType>(1) << 16;
+        spiIrq.enablePtr_ = IrqEnable2;
+        spiIrq.disablePtr_ = IrqDisable2;
+        spiIrq.enDisMask_ = static_cast<EntryType>(1) << (54 - 32);
+        static_cast<void>(spiIrq);
     }
 }
 
