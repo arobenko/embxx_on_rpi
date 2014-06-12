@@ -1,9 +1,10 @@
-function (bin_button)
-    set (name "03_button")
+function (bin_uart1_comms)
+    set (name "app_uart1_comms")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/System.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/System.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Session.cpp")
 
     set (link
         ${STARTUP_LIB_NAME}
@@ -18,4 +19,4 @@ endfunction ()
 
 #################################################################
 
-bin_button()
+bin_uart1_comms()

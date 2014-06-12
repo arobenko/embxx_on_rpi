@@ -33,9 +33,8 @@ add_subdirectory (asm)
 
 embxx_add_c_cxx_flags ("-march=armv6z")
 
-if (TEST_CPP)
+if (NOT NO_TEST_CPP)
     add_subdirectory (test_cpp)
-    return()
 endif ()
 
 

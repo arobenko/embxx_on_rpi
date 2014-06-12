@@ -1,10 +1,10 @@
-function (bin_test_statics)
-    set (name "03_test_statics")
+function (bin_test_abstract_class)
+    set (name "test_cpp_abstract_class")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/SomeObj.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/SomeObj2.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/AbstractBase.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Derived.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp")
 
     set (link
@@ -20,6 +20,5 @@ endfunction ()
 embxx_disable_exceptions ()
 embxx_disable_rtti ()
 embxx_disable_stdlib ()
-embxx_add_c_cxx_flags ("-fno-threadsafe-statics")
 
-bin_test_statics()
+bin_test_abstract_class()

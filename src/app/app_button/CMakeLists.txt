@@ -1,5 +1,5 @@
-function (bin_uart1_logging)
-    set (name "04_uart1_logging")
+function (bin_button)
+    set (name "app_button")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
@@ -18,4 +18,4 @@ endfunction ()
 
 #################################################################
 
-bin_uart1_logging()
+bin_button()

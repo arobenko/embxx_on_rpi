@@ -1,12 +1,15 @@
-function (bin_test_templates)
-    set (name "05_test_templates")
+function (bin_uart1_echo)
+    set (name "app_uart1_echo")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/other.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/System.cpp")
 
     set (link
-        ${STARTUP_LIB_NAME})
+        ${STARTUP_LIB_NAME}
+        ${DEVICE_LIB_NAME}
+        ${STDLIB_STUB_LIB_NAME}
+        "gcc")
 
     add_executable(${name} ${src})
     target_link_libraries (${name} ${link})
@@ -15,8 +18,4 @@ endfunction ()
 
 #################################################################
 
-embxx_disable_exceptions ()
-embxx_disable_rtti ()
-embxx_disable_stdlib ()
-
-bin_test_templates()
+bin_uart1_echo()

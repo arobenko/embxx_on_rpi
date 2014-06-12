@@ -1,5 +1,5 @@
-function (bin_spi0_flash)
-    set (name "07_spi0_flash")
+function (bin_i2c0_eeprom)
+    set (name "app_i2c0_eeprom")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
@@ -18,4 +18,4 @@ endfunction ()
 
 #################################################################
 
-bin_spi0_flash()
+bin_i2c0_eeprom()

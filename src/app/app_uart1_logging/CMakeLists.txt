@@ -1,5 +1,5 @@
-function (bin_uart1_echo)
-    set (name "02_uart1_echo")
+function (bin_uart1_logging)
+    set (name "app_uart1_logging")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
@@ -18,4 +18,4 @@ endfunction ()
 
 #################################################################
 
-bin_uart1_echo()
+bin_uart1_logging()

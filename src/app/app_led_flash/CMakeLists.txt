@@ -1,16 +1,15 @@
-function (bin_uart1_comms)
-    set (name "05_uart1_comms")
+function (bin_led_flash)
+    set (name "app_led_flash")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/System.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Session.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/System.cpp")
 
     set (link
         ${STARTUP_LIB_NAME}
         ${DEVICE_LIB_NAME}
         ${STDLIB_STUB_LIB_NAME}
-        "gcc")
+        gcc)
 
     add_executable(${name} ${src})
     target_link_libraries (${name} ${link})
@@ -19,4 +18,4 @@ endfunction ()
 
 #################################################################
 
-bin_uart1_comms()
+bin_led_flash()

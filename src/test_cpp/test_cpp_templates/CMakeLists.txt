@@ -1,11 +1,9 @@
-function (bin_test_abstract_class)
-    set (name "04_test_abstract_class")
+function (bin_test_templates)
+    set (name "test_cpp_templates")
     
     set (src 
         "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/AbstractBase.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Derived.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/other.cpp")
 
     set (link
         ${STARTUP_LIB_NAME})
@@ -21,4 +19,4 @@ embxx_disable_exceptions ()
 embxx_disable_rtti ()
 embxx_disable_stdlib ()
 
-bin_test_abstract_class()
+bin_test_templates()
