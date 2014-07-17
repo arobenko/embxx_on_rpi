@@ -1,5 +1,6 @@
 add_subdirectory (test_cpp_simple)
 add_subdirectory (test_cpp_vector)
+add_subdirectory (test_cpp_exceptions)
 add_subdirectory (test_cpp_statics)
 add_subdirectory (test_cpp_abstract_class)
 add_subdirectory (test_cpp_templates)
