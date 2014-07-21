@@ -15,23 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <vector>
-#include <cstddef>
+#include "SomeClass.h"
 
-// This function is required by common startup code
-extern "C"
-void interruptHandler()
+void SomeClass::someFunc()
 {
-}
-
-int main(int argc, const char** argv)
-{
-    static_cast<void>(argc);
-    static_cast<void>(argv);
-
-    std::vector<int> v;
-    v.at(100) = 0;
-
-    while (true) {};
-    return 0;
 }
