@@ -86,19 +86,24 @@ int main() {
     // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
+    // Configure UART
     auto& uart = system.uart();
     uart.configBaud(115200);
     uart.setWriteEnabled(true);
 
+    // Allocate Timer
     auto timer = system.timerMgr().allocTimer();
     GASSERT(timer.isValid());
+
+    // Start logging
     std::size_t counter = 0;
     performLog(log, timer, counter);
 
+    // Run event loop
     device::interrupt::enable();
     auto& el = system.eventLoop();
     el.run();
 
     GASSERT(0); // Mustn't exit
-	return 0;
+    return 0;
 }
