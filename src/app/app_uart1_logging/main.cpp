@@ -68,11 +68,12 @@ void performLog(TLog& log, TTimer& timer, std::size_t& counter)
     static const auto LoggingWaitPeriod = std::chrono::seconds(1);
     timer.asyncWait(
         LoggingWaitPeriod,
-        std::bind(
-            &performLog<TLog, TTimer>,
-            std::ref(log),
-            std::ref(timer),
-            std::ref(counter)));
+        [&](const embxx::error::ErrorStatus& es)
+        {
+            GASSERT(!es);
+            static_cast<void>(es);
+            performLog(log, timer, counter);
+        });
 }
 
 }  // namespace
