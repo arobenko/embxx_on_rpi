@@ -68,7 +68,6 @@ public:
         embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&), sizeof(void*) * 4>
     > TimerMgr;
 
-
     // Components
     typedef component::OnBoardLed<Gpio> Led;
     static const std::size_t OutStreamBufSize = 1024;
