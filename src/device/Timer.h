@@ -273,6 +273,8 @@ void Timer<TInterruptMgr, THandler>::interruptHandler()
 {
     *IrqClearAckReg = 1; // Clear the interrupt
     waitInProgress_ = false;
+    *ControlReg &= ~ControlRegTimerEnableMask;
+    disableInterrupts();
     if (handler_) {
         handler_(embxx::error::ErrorCode::Success);
     }
