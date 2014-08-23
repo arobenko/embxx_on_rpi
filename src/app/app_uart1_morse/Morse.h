@@ -232,7 +232,7 @@ private:
     }
 
     Led& led_;
-    InBuf buf_;
+    InBuf& buf_;
     Timer timer_;
 };
 
