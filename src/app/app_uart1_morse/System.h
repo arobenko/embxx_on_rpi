@@ -1,5 +1,5 @@
 //
-// Copyright 2013 (C). Alex Robenko. All rights reserved.
+// Copyright 2014 (C). Alex Robenko. All rights reserved.
 //
 
 // This file is free software: you can redistribute it and/or modify
@@ -18,14 +18,10 @@
 #pragma once
 
 #include "embxx/util/EventLoop.h"
-#include "embxx/util/StreamLogger.h"
-#include "embxx/util/log/LevelStringPrefixer.h"
-#include "embxx/util/log/StreamableValueSuffixer.h"
-#include "embxx/util/log/StreamFlushSuffixer.h"
 #include "embxx/driver/Character.h"
+#include "embxx/driver/Generic.h"
 #include "embxx/driver/TimerMgr.h"
-#include "embxx/io/OutStreamBuf.h"
-#include "embxx/io/OutStream.h"
+#include "embxx/io/InStreamBuf.h"
 
 #include "device/Function.h"
 #include "device/Gpio.h"
@@ -47,57 +43,39 @@ public:
 
     // Devices
     typedef device::InterruptMgr<> InterruptMgr;
-    typedef device::Gpio<InterruptMgr> Gpio;
+    typedef device::Gpio<InterruptMgr, 1U> Gpio;
     typedef device::Uart1<InterruptMgr> Uart;
     typedef device::Timer<InterruptMgr> TimerDevice;
 
     // Drivers
-    struct CharacterTraits
+    struct OutCharacterTraits
     {
-        typedef std::nullptr_t ReadHandler;
-        typedef embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&, std::size_t)> WriteHandler;
-        typedef std::nullptr_t ReadUntilPred;
-        static const std::size_t ReadQueueSize = 0;
-        static const std::size_t WriteQueueSize = 1;
+        typedef embxx::util::StaticFunction<void(const embxx::error::ErrorStatus&, std::size_t)> ReadHandler;
+        typedef std::nullptr_t WriteHandler;
+        typedef std::nullptr_t ReadUntilPred; // no read until
+        static const std::size_t ReadQueueSize = 1;
+        static const std::size_t WriteQueueSize = 0; // no write support
     };
-    typedef embxx::driver::Character<Uart, EventLoop, CharacterTraits> UartDriver;
+    typedef embxx::driver::Character<Uart, EventLoop, OutCharacterTraits> UartDriver;
     typedef embxx::driver::TimerMgr<
-        TimerDevice,
-        EventLoop,
-        1,
-        embxx::util::StaticFunction<void (const embxx::error::ErrorStatus&), sizeof(void*) * 4>
-    > TimerMgr;
+            TimerDevice,
+            EventLoop,
+            1> TimerMgr;
 
     // Components
     typedef component::OnBoardLed<Gpio> Led;
-    static const std::size_t OutStreamBufSize = 1024;
-    typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
-    typedef embxx::io::OutStream<OutStreamBuf> OutStream;
-    typedef embxx::util::log::StreamFlushSuffixer<
-            embxx::util::log::StreamableValueSuffixer<
-                const OutStream::CharType*,
-                embxx::util::log::LevelStringPrefixer<
-                    embxx::util::StreamLogger<
-                        embxx::util::log::Debug,
-                        OutStream
-                    >
-                >
-            >
-        > Log;
+    typedef embxx::io::InStreamBuf<UartDriver, 1024> InStreamBuf;
 
     static System& instance();
+
     inline EventLoop& eventLoop();
-
-    // Devices
     inline InterruptMgr& interruptMgr();
+    inline Gpio& gpio();
     inline Uart& uart();
-
-    // Drivers
-    inline TimerMgr& timerMgr();
-
-    // Components
     inline Led& led();
-    inline Log& log();
+    inline TimerDevice& timerDevice();
+    inline TimerMgr& timerMgr();
+    inline InStreamBuf& inBuf();
 
 private:
     System();
@@ -117,11 +95,10 @@ private:
 
     // Components
     Led led_;
-    OutStreamBuf buf_;
-    OutStream stream_;
-    Log log_;
+    InStreamBuf inBuf_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
+    static const unsigned UartBaud = 115200;
 };
 
 extern "C"
@@ -140,14 +117,16 @@ inline System::InterruptMgr& System::interruptMgr()
     return interruptMgr_;
 }
 
-inline System::Uart& System::uart()
+inline
+System::Gpio& System::gpio()
 {
-    return uart_;
+    return gpio_;
 }
 
-inline System::TimerMgr& System::timerMgr()
+inline
+System::Uart& System::uart()
 {
-    return timerMgr_;
+    return uart_;
 }
 
 inline
@@ -157,8 +136,20 @@ System::Led& System::led()
 }
 
 inline
-System::Log& System::log()
+System::TimerDevice& System::timerDevice()
 {
-    return log_;
+    return timerDevice_;
+}
+
+inline
+System::TimerMgr& System::timerMgr()
+{
+    return timerMgr_;
+}
+
+inline
+System::InStreamBuf& System::inBuf()
+{
+    return inBuf_;
 }
 

@@ -15,12 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "System.h"
-
 #include <functional>
-#include <chrono>
 
 #include "embxx/util/Assert.h"
+
+#include "System.h"
+#include "Morse.h"
 
 namespace
 {
@@ -46,6 +46,7 @@ public:
         static_cast<void>(function);
 
         led_.on();
+        device::interrupt::disable();
         while (true) {;}
     }
 
@@ -53,57 +54,26 @@ private:
     Led& led_;
 };
 
-namespace log = embxx::util::log;
-template <typename TLog, typename TTimer>
-void performLog(TLog& log, TTimer& timer, std::size_t& counter)
-{
-    ++counter;
-
-    SLOG(log, log::Info,
-        "Logging output: counter = " <<
-        embxx::io::dec << counter <<
-        " (0x" << embxx::io::hex << counter << ")");
-
-    // Perform next logging after a timeout
-    static const auto LoggingWaitPeriod = std::chrono::seconds(1);
-    timer.asyncWait(
-        LoggingWaitPeriod,
-        [&](const embxx::error::ErrorStatus& es)
-        {
-            GASSERT(!es);
-            static_cast<void>(es);
-            performLog(log, timer, counter);
-        });
-}
-
 }  // namespace
 
 int main() {
     auto& system = System::instance();
     auto& led = system.led();
-    auto& log = system.log();
 
     // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
-    // Configure UART
-    auto& uart = system.uart();
-    uart.configBaud(115200);
-    uart.setWriteEnabled(true);
+    typedef Morse<System::Led, System::InStreamBuf, System::TimerMgr> MorseRunner;
 
-    // Allocate Timer
-    auto timer = system.timerMgr().allocTimer();
-    GASSERT(timer.isValid());
+    auto& buf = system.inBuf();
+    auto& timerMgr = system.timerMgr();
+    MorseRunner morse(led, buf, timerMgr);
+    morse.start();
 
-    // Start logging
-    std::size_t counter = 0;
-    performLog(log, timer, counter);
-
-    // Run event loop
     device::interrupt::enable();
     auto& el = system.eventLoop();
     el.run();
 
     GASSERT(0); // Mustn't exit
-    return 0;
+	return 0;
 }

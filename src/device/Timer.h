@@ -44,7 +44,7 @@ public:
     Timer(InterruptMgr& interruptMgr);
 
     template <typename TFunc>
-    void setHandler(TFunc&& handler);
+    void setWaitCompleteCallback(TFunc&& handler);
 
     template <typename TContext>
     void startWait(WaitTimeType waitMs, TContext context);
@@ -138,7 +138,7 @@ Timer<TInterruptMgr, THandler>::Timer(InterruptMgr& interruptMgr)
 template <typename TInterruptMgr,
           typename THandler>
 template <typename TFunc>
-void Timer<TInterruptMgr, THandler>::setHandler(TFunc&& handler)
+void Timer<TInterruptMgr, THandler>::setWaitCompleteCallback(TFunc&& handler)
 {
     handler_ = std::forward<TFunc>(handler);
 }
@@ -273,6 +273,8 @@ void Timer<TInterruptMgr, THandler>::interruptHandler()
 {
     *IrqClearAckReg = 1; // Clear the interrupt
     waitInProgress_ = false;
+    *ControlReg &= ~ControlRegTimerEnableMask;
+    disableInterrupts();
     if (handler_) {
         handler_(embxx::error::ErrorCode::Success);
     }
