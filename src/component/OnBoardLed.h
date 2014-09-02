@@ -30,16 +30,16 @@ class OnBoardLed : public Led<TGpio, false>
     typedef Led<TGpio, false> Base;
 public:
     typedef typename Base::Gpio Gpio;
-    typedef typename Base::PinIdxType PinIdxType;
+    typedef typename Base::PinIdType PinIdType;
 
     OnBoardLed(Gpio& gpio)
-        : Base(gpio, OnBoardLedPinIdx, InitiallyOn)
+        : Base(gpio, OnBoardLedPinIdx, InitialyOn)
     {
     }
 
 private:
-    static const PinIdxType OnBoardLedPinIdx = 16;
-    static const bool InitiallyOn = false;
+    static const PinIdType OnBoardLedPinIdx = 16;
+    static const bool InitialyOn = false;
 };
 
 }  // namespace component

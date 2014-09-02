@@ -19,7 +19,7 @@
 
 #include "embxx/util/EventLoop.h"
 #include "embxx/driver/Character.h"
-#include "embxx/driver/Generic.h"
+#include "embxx/driver/Gpio.h"
 #include "embxx/driver/TimerMgr.h"
 #include "embxx/io/WriteQueue.h"
 
@@ -44,12 +44,12 @@ public:
 
     // Devices
     typedef device::InterruptMgr<> InterruptMgr;
-    typedef device::Gpio<InterruptMgr, 1U> Gpio;
+    typedef device::Gpio<InterruptMgr> Gpio;
     typedef device::Uart1<InterruptMgr> Uart;
     typedef device::Timer<InterruptMgr> TimerDevice;
 
     // Drivers
-    typedef embxx::driver::Generic<Gpio, EventLoop, void (bool)> ButtonDriver;
+    typedef embxx::driver::Gpio<Gpio, EventLoop, 1> ButtonDriver;
 
     struct CharacterTraits
     {

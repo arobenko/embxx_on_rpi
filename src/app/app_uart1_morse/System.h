@@ -43,7 +43,7 @@ public:
 
     // Devices
     typedef device::InterruptMgr<> InterruptMgr;
-    typedef device::Gpio<InterruptMgr, 1U> Gpio;
+    typedef device::Gpio<InterruptMgr> Gpio;
     typedef device::Uart1<InterruptMgr> Uart;
     typedef device::Timer<InterruptMgr> TimerDevice;
 

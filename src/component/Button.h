@@ -34,11 +34,11 @@ class Button
 public:
     typedef TDriver Driver;
     typedef typename Driver::Device Gpio;
-    typedef typename Gpio::PinIdxType PinIdxType;
+    typedef typename Gpio::PinIdType PinIdType;
     static const bool ActiveState = TActiveState;
     typedef THandler Handler;
 
-    Button(Driver& driver, PinIdxType pidIdx);
+    Button(Driver& driver, PinIdType pidIdx);
 
     bool isPressed() const;
 
@@ -52,7 +52,7 @@ private:
     void invokeHandler();
 
     Driver& driver_;
-    PinIdxType pin_;
+    PinIdType pin_;
     bool state_;
     Handler pressedHandler_;
     Handler releasedHandler_;
@@ -62,26 +62,28 @@ private:
 template <typename TDriver, bool TActiveState, typename THandler>
 Button<TDriver, TActiveState, THandler>::Button(
     Driver& driver,
-    PinIdxType pin)
+    PinIdType pin)
     : driver_(driver),
       pin_(pin),
       state_(driver.device().readPin(pin))
 {
     auto& gpio = driver_.device();
     gpio.configDir(pin, Gpio::Dir_Input);
+    gpio.configInputEdge(pin, Gpio::Edge_Rising, true);
+    gpio.configInputEdge(pin, Gpio::Edge_Falling, true);
 
-    driver.setHandler(
+    driver.asyncReadCont(
         pin,
-        [this](bool state)
+        [this](const embxx::error::ErrorStatus& es, bool state)
         {
+            static_cast<void>(es);
+            GASSERT(!es);
+
             if (state_ != state) {
                 state_ = state;
                 invokeHandler();
             }
         });
-
-    gpio.setEdgeInterruptEnabled(pin, TActiveState, true);
-    gpio.setEdgeInterruptEnabled(pin, !TActiveState, true);
 }
 
 template <typename TDriver, bool TActiveState, typename THandler>
