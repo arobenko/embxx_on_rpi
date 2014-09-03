@@ -38,18 +38,66 @@ public:
     static const bool ActiveState = TActiveState;
     typedef THandler Handler;
 
-    Button(Driver& driver, PinIdType pidIdx);
+    Button(Driver& driver, PinIdType pin)
+      : driver_(driver),
+        pin_(pin),
+        state_(driver.device().readPin(pin))
+    {
+        auto& gpio = driver_.device();
+        gpio.configDir(pin, Gpio::Dir_Input);
+        gpio.configInputEdge(pin, Gpio::Edge_Rising, true);
+        gpio.configInputEdge(pin, Gpio::Edge_Falling, true);
 
-    bool isPressed() const;
+        driver.asyncReadCont(
+            pin,
+            [this](const embxx::error::ErrorStatus& es, bool state)
+            {
+                static_cast<void>(es);
+                GASSERT(!es);
+
+                if (state_ != state) {
+                    state_ = state;
+                    invokeHandler();
+                }
+            });
+    }
+
+    ~Button()
+    {
+        driver_.cancelReadContNoCallback(pin_);
+    }
+
+    bool isPressed() const
+    {
+        if (TActiveState) {
+            return state_;
+        }
+        return !state_;
+    }
 
     template <typename TFunc>
-    void setPressedHandler(TFunc&& func);
+    void setPressedHandler(TFunc&& func)
+    {
+        pressedHandler_ = std::forward<TFunc>(func);
+    }
 
     template <typename TFunc>
-    void setReleasedHandler(TFunc&& func);
+    void setReleasedHandler(TFunc&& func)
+    {
+        releasedHandler_ = std::forward<TFunc>(func);
+    }
 
 private:
-    void invokeHandler();
+    void invokeHandler()
+    {
+        bool pressed = isPressed();
+        if (pressed && pressedHandler_) {
+            pressedHandler_();
+        }
+        else if ((!pressed) && releasedHandler_) {
+            releasedHandler_();
+        }
+    }
 
     Driver& driver_;
     PinIdType pin_;
@@ -57,71 +105,6 @@ private:
     Handler pressedHandler_;
     Handler releasedHandler_;
 };
-
-// Implementation
-template <typename TDriver, bool TActiveState, typename THandler>
-Button<TDriver, TActiveState, THandler>::Button(
-    Driver& driver,
-    PinIdType pin)
-    : driver_(driver),
-      pin_(pin),
-      state_(driver.device().readPin(pin))
-{
-    auto& gpio = driver_.device();
-    gpio.configDir(pin, Gpio::Dir_Input);
-    gpio.configInputEdge(pin, Gpio::Edge_Rising, true);
-    gpio.configInputEdge(pin, Gpio::Edge_Falling, true);
-
-    driver.asyncReadCont(
-        pin,
-        [this](const embxx::error::ErrorStatus& es, bool state)
-        {
-            static_cast<void>(es);
-            GASSERT(!es);
-
-            if (state_ != state) {
-                state_ = state;
-                invokeHandler();
-            }
-        });
-}
-
-template <typename TDriver, bool TActiveState, typename THandler>
-bool Button<TDriver, TActiveState, THandler>::isPressed() const
-{
-    if (TActiveState) {
-        return state_;
-    }
-    return !state_;
-}
-
-template <typename TDriver, bool TActiveState, typename THandler>
-template <typename TFunc>
-void Button<TDriver, TActiveState, THandler>::setPressedHandler(
-    TFunc&& func)
-{
-    pressedHandler_ = std::forward<TFunc>(func);
-}
-
-template <typename TDriver, bool TActiveState, typename THandler>
-template <typename TFunc>
-void Button<TDriver, TActiveState, THandler>::setReleasedHandler(
-    TFunc&& func)
-{
-    releasedHandler_ = std::forward<TFunc>(func);
-}
-
-template <typename TDriver, bool TActiveState, typename THandler>
-void Button<TDriver, TActiveState, THandler>::invokeHandler()
-{
-    bool pressed = isPressed();
-    if (pressed && pressedHandler_) {
-        pressedHandler_();
-    }
-    else if ((!pressed) && releasedHandler_) {
-        releasedHandler_();
-    }
-}
 
 }  // namespace component
 

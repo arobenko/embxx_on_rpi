@@ -17,11 +17,17 @@
 
 #pragma once
 
+#include "embxx/util/StreamLogger.h"
+#include "embxx/util/log/LevelStringPrefixer.h"
+#include "embxx/util/log/StreamableValueSuffixer.h"
+#include "embxx/util/log/StreamFlushSuffixer.h"
 #include "embxx/util/EventLoop.h"
 #include "embxx/driver/Character.h"
 #include "embxx/driver/Gpio.h"
 #include "embxx/driver/TimerMgr.h"
-#include "embxx/io/WriteQueue.h"
+#include "embxx/io/OutStreamBuf.h"
+#include "embxx/io/OutStream.h"
+
 
 #include "device/Function.h"
 #include "device/Gpio.h"
@@ -66,9 +72,22 @@ public:
             1> TimerMgr;
 
     // Components
-    typedef embxx::io::WriteQueue<UartDriver, 10> UartSocket;
     typedef component::OnBoardLed<Gpio> Led;
     typedef component::Button<ButtonDriver, false> Button;
+
+    static const std::size_t OutStreamBufSize = 1024;
+    typedef embxx::io::OutStreamBuf<UartDriver, OutStreamBufSize> OutStreamBuf;
+    typedef embxx::io::OutStream<OutStreamBuf> OutStream;
+    typedef embxx::util::log::StreamFlushSuffixer<
+            embxx::util::log::StreamableValueSuffixer<
+                const OutStream::CharType*,
+                embxx::util::StreamLogger<
+                    embxx::util::log::Info,
+                    OutStream
+                >
+            >
+        > Log;
+
 
     static System& instance();
 
@@ -76,11 +95,10 @@ public:
     inline InterruptMgr& interruptMgr();
     inline Gpio& gpio();
     inline Uart& uart();
-    inline UartSocket& uartSocket();
+    inline TimerMgr& timerMgr();
     inline Led& led();
     inline Button& button();
-    inline TimerDevice& timerDevice();
-    inline TimerMgr& timerMgr();
+    inline Log& log();
 
 private:
     System();
@@ -100,9 +118,11 @@ private:
     TimerMgr timerMgr_;
 
     // Components
-    UartSocket uartSocket_;
     Led led_;
     Button button_;
+    OutStreamBuf buf_;
+    OutStream stream_;
+    Log log_;
 
     static const unsigned SysClockFreq = 250000000; // 250MHz
     static const device::Function::PinIdxType ButtonPin = 23;
@@ -137,9 +157,9 @@ System::Uart& System::uart()
 }
 
 inline
-System::UartSocket& System::uartSocket()
+System::TimerMgr& System::timerMgr()
 {
-    return uartSocket_;
+    return timerMgr_;
 }
 
 inline
@@ -154,15 +174,8 @@ System::Button& System::button()
     return button_;
 }
 
-
-inline
-System::TimerDevice& System::timerDevice()
+inline System::Log& System::log()
 {
-    return timerDevice_;
+    return log_;
 }
 
-inline
-System::TimerMgr& System::timerMgr()
-{
-    return timerMgr_;
-}
