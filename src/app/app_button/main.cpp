@@ -98,19 +98,21 @@ void buttonReleased()
 int main() {
     auto& system = System::instance();
     auto& led = system.led();
-    auto& el = system.eventLoop();
 
     // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
+    // Configure uart
     auto& uart = system.uart();
     uart.configBaud(9600);
     uart.setWriteEnabled(true);
 
+    // Allocate timer
     auto& timerMgr = system.timerMgr();
     auto timer = timerMgr.allocTimer();
     GASSERT(timer.isValid());
 
+    // Set handlers for button press / release
     auto& button = system.button();
     button.setPressedHandler(
         std::bind(
@@ -119,8 +121,9 @@ int main() {
 
     button.setReleasedHandler(&buttonReleased);
 
+    // Run event loop with enabled interrupts
     device::interrupt::enable();
-
+    auto& el = system.eventLoop();
     el.run();
 
     GASSERT(0); // Mustn't exit
