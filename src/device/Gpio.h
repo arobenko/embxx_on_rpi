@@ -33,19 +33,18 @@ namespace device
 {
 
 template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers = 0,
-          typename THandler = embxx::util::StaticFunction<void (bool)> >
+          typename THandler = embxx::util::StaticFunction<void (Function::PinIdxType, bool)> >
 class Gpio
 {
+
 public:
 
     typedef TInterruptMgr InterruptMgr;
-
-    static const std::size_t MaxNumOfHandlers = TMaxNumOfHandlers;
-
     typedef THandler Handler;
 
-    typedef Function::PinIdxType PinIdxType;
+    typedef embxx::device::context::EventLoop EventLoopCtx;
+
+    typedef Function::PinIdxType PinIdType;
     static const std::size_t NumOfLines = Function::NumOfLines;
 
     enum Dir {
@@ -54,34 +53,168 @@ public:
         Dir_NumOfDirs // Must be last
     };
 
-    explicit Gpio(InterruptMgr& interruptMgr, Function& func);
+    enum Edge {
+        Edge_Rising,
+        Edge_Falling,
+        Edge_NumOfEdges // Must be last
+    };
 
-    void configDir(PinIdxType idx, Dir dir);
-
-    void writePin(PinIdxType idx, bool value);
-
-    bool readPin(PinIdxType idx) const;
-
-    void setEdgeInterruptEnabled(
-        PinIdxType idx,
-        bool edgeFinalValue, // true for raising, false for falling
-        bool enabled);
-
-    template <typename TFunc>
-    void setHandler(PinIdxType idx, TFunc&& func);
-
-private:
-
-    struct Node
+    Gpio(InterruptMgr& interruptMgr, Function& func)
+      : interruptMgr_(interruptMgr),
+        func_(func),
+        enabled_(false)
     {
-        Node()
-            : pinIdx_(std::numeric_limits<PinIdxType>::max())
-        {
+        for (auto& c : edgeConfig) {
+            c = 0U;
         }
 
-        PinIdxType pinIdx_;
-        Handler handler_;
-    };
+        for (int i = 0; i < NumOfInterrupts; ++i) {
+            typedef typename InterruptMgr::IrqId IrqId;
+            IrqId interruptIdx =
+                static_cast<IrqId>(InterruptMgr::IrqId_Gpio1 + i);
+
+            interruptMgr.registerHandler(
+                interruptIdx,
+                [this](){
+                    WordsBundle bundle = *pGPEDS;
+                    *pGPEDS = bundle; // clear all the reported interrupts
+                    for (PinIdType i = 0U; i < NumOfLines; ++i) {
+                        auto* entry = idxToEntry(i, &bundle);
+                        auto mask = idxToEntryBitmask(i);
+                        if ((*entry & mask) == 0) {
+                            continue;
+                        }
+
+                        typedef typename EdgeConfigData::value_type EdgConfigValuetype;
+                        auto value = readPin(i);
+                        auto edgeConfigMask =
+                            static_cast<EdgConfigValuetype>(1) << i;
+                        GASSERT(handler_);
+                        if (((value) && ((edgeConfig[Edge_Rising] & edgeConfigMask) != 0)) ||
+                            ((!value) && ((edgeConfig[Edge_Falling] & edgeConfigMask) != 0))) {
+                            handler_(i, value);
+                        }
+                    }
+                });
+            setInterruptsEnabled(false);
+        }
+    }
+
+    void configDir(PinIdType pin, Dir dir)
+    {
+        GASSERT(dir < Dir_NumOfDirs);
+        auto funcSel = DirToFuncSel[dir];
+        func_.configure(pin, funcSel);
+    }
+
+    void configInputEdge(
+        PinIdType pin,
+        Edge edge,
+        bool enabled)
+    {
+        if ((edge < static_cast<decltype(edge)>(0)) ||
+            (Edge_NumOfEdges <= edge)) {
+            GASSERT(!"Invalid edge value");
+            return;
+        }
+
+        if (NumOfLines <= pin) {
+            GASSERT(!"Invalid pin");
+            return;
+        }
+
+        typedef typename EdgeConfigData::value_type EdgConfigValuetype;
+        static_assert(NumOfLines <
+            std::numeric_limits<EdgConfigValuetype>::digits,
+            "Unexpected number of lines");
+
+        auto mask = static_cast<EdgConfigValuetype>(1) << pin;
+        if (enabled) {
+            edgeConfig[edge] |= mask;
+        }
+        else {
+            edgeConfig[edge] &= (~mask);
+        }
+    }
+
+    void writePin(PinIdType pin, bool value)
+    {
+        GASSERT(pin < NumOfLines);
+        if (value) {
+            updateEntry(pin, pGPSET);
+            return;
+        }
+        updateEntry(pin, pGPCLR);
+    }
+
+    bool readPin(PinIdType pin) const
+    {
+        GASSERT(pin < NumOfLines);
+        SingleWordType entry = *idxToEntry(pin, pGPLEV);
+        auto mask = idxToEntryBitmask(pin);
+        return (entry & mask) != 0;
+    }
+
+    template <typename TFunc>
+    void setHandler(TFunc&& func)
+    {
+        handler_ = std::forward<TFunc>(func);
+    }
+
+    void start(EventLoopCtx)
+    {
+        GASSERT(!enabled_);
+        setInterruptsEnabled(true);
+        enabled_ = true;
+    }
+
+    bool cancel(EventLoopCtx)
+    {
+        setInterruptsEnabled(false);
+        if (!enabled_) {
+            return false;
+        }
+        enabled_ = false;
+        return true;
+    }
+
+    void setEnabled(PinIdType pin, bool enabled, EventLoopCtx)
+    {
+        GASSERT(pin < NumOfLines);
+        if (NumOfLines <= pin) {
+            return;
+        }
+
+        if (!enabled) {
+            updateEntry(pin, pGPREN, enabled);
+            updateEntry(pin, pGPFEN, enabled);
+            return;
+        }
+
+        typedef typename EdgeConfigData::value_type EdgConfigValuetype;
+        GASSERT(pin < std::numeric_limits<EdgConfigValuetype>::digits);
+        auto mask = static_cast<EdgConfigValuetype>(1) << pin;
+        if ((edgeConfig[Edge_Rising] & mask) != 0) {
+            updateEntry(pin, pGPREN, enabled);
+        }
+
+        if ((edgeConfig[Edge_Falling] & mask) != 0) {
+            updateEntry(pin, pGPFEN, enabled);
+        }
+    }
+
+    bool suspend(EventLoopCtx)
+    {
+        setInterruptsEnabled(false);
+        return enabled_;
+    }
+
+    void resume(EventLoopCtx) {
+        GASSERT(enabled_);
+        setInterruptsEnabled(true);
+    }
+
+private:
 
     typedef std::uint32_t SingleWordType;
     static const std::size_t BitsInSingleWord = sizeof(SingleWordType) * 8;
@@ -93,31 +226,82 @@ private:
         volatile SingleWordType entries[NumOfWordsInBundle];
     };
 
+    void setInterruptsEnabled(bool enabled)
+    {
+        for (int i = 0; i < NumOfInterrupts; ++i) {
+            typedef typename InterruptMgr::IrqId IrqId;
+            IrqId interruptIdx =
+                static_cast<IrqId>(InterruptMgr::IrqId_Gpio1 + i);
+
+            if (enabled) {
+                interruptMgr_.enableInterrupt(interruptIdx);
+            }
+            else {
+                interruptMgr_.disableInterrupt(interruptIdx);
+            }
+        }
+    }
+
     static const volatile SingleWordType* idxToEntry(
-        PinIdxType idx,
-        const WordsBundle* bundle);
+        PinIdType pin,
+        const WordsBundle* bundle)
+    {
+        GASSERT(pin < Function::NumOfLines);
+        PinIdType modifiedIdx = pin;
+        std::size_t entryIdx = 0;
+        while (BitsInSingleWord <= modifiedIdx) {
+            ++entryIdx;
+            modifiedIdx -= BitsInSingleWord;
+        }
+        GASSERT(entryIdx < NumOfWordsInBundle);
+        return &bundle->entries[entryIdx];
+    }
 
     static volatile SingleWordType* idxToEntry(
-        PinIdxType idx,
-        WordsBundle* bundle);
+        PinIdType pin,
+        WordsBundle* bundle)
+    {
+        return
+            const_cast<volatile SingleWordType*>(
+                idxToEntry(pin, static_cast<const WordsBundle*>(bundle)));
+    }
 
-    static SingleWordType idxToEntryBitmask(PinIdxType idx);
+    static SingleWordType idxToEntryBitmask(PinIdType pin)
+    {
+        GASSERT(pin < Function::NumOfLines);
+        Gpio::PinIdType modifiedIdx = pin;
+        while (BitsInSingleWord <= modifiedIdx) {
+            modifiedIdx -= BitsInSingleWord;
+        }
+        return static_cast<SingleWordType>(1) << modifiedIdx;
+    }
 
     static void updateEntry(
-        PinIdxType idx,
+        PinIdType pin,
         WordsBundle* bundle,
-        bool value = true);
+        bool value = true)
+    {
+        auto entry = idxToEntry(pin, bundle);
+        auto mask = idxToEntryBitmask(pin);
+        if (value) {
+            *entry |= mask;
+        }
+        else {
+            *entry &= ~mask;
+        }
+    }
 
-    Node* allocHandlerSpace(PinIdxType idx);
-
-    void interruptHandler();
-
+    typedef std::array<std::uint64_t, Edge_NumOfEdges> EdgeConfigData;
+    InterruptMgr& interruptMgr_;
     Function& func_;
-    std::array<Node, MaxNumOfHandlers> interruptHandlers_;
-    std::size_t interruptHandlersCount_;
-
+    Handler handler_;
+    EdgeConfigData edgeConfig;
+    bool enabled_;
 
     static const Function::FuncSel DirToFuncSel[Gpio::Dir_NumOfDirs];
+
+    static const int NumOfInterrupts =
+        (InterruptMgr::IrqId_Gpio4 - InterruptMgr::IrqId_Gpio1) + 1;
 
     static constexpr WordsBundle* pGPSET =
         reinterpret_cast<WordsBundle*>(0x2020001C);
@@ -135,220 +319,15 @@ private:
 };
 
 // Implementation
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::Gpio(
-    InterruptMgr& interruptMgr,
-    Function& func)
-    : func_(func),
-      interruptHandlersCount_(0)
-{
-    if (0 < TMaxNumOfHandlers) {
-        static const int NumOfInterrupts =
-            (InterruptMgr::IrqId_Gpio4 - InterruptMgr::IrqId_Gpio1) + 1;
 
-        for (int i = 0; i < NumOfInterrupts; ++i) {
-            typedef typename InterruptMgr::IrqId IrqId;
-            IrqId interruptIdx =
-                static_cast<IrqId>(InterruptMgr::IrqId_Gpio1 + i);
-
-            interruptMgr.registerHandler(
-                interruptIdx,
-                std::bind(&Gpio::interruptHandler, this));
-
-            interruptMgr.enableInterrupt(interruptIdx);
-        }
-    }
-}
 
 template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
           typename THandler>
-void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::configDir(
-    PinIdxType idx,
-    Dir dir)
-{
-    GASSERT(dir < Dir_NumOfDirs);
-    auto funcSel = DirToFuncSel[dir];
-    func_.configure(idx, funcSel);
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::writePin(
-    PinIdxType idx,
-    bool value)
-{
-    GASSERT(idx < NumOfLines);
-    if (value) {
-        updateEntry(idx, pGPSET);
-        return;
-    }
-    updateEntry(idx, pGPCLR);
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-bool Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::readPin(PinIdxType idx) const
-{
-    GASSERT(idx < NumOfLines);
-    SingleWordType entry = *idxToEntry(idx, pGPLEV);
-    auto mask = idxToEntryBitmask(idx);
-    return (entry & mask) != 0;
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::setEdgeInterruptEnabled(
-    PinIdxType idx,
-    bool edgeFinalValue,
-    bool enabled)
-{
-    GASSERT(idx < NumOfLines);
-    WordsBundle* bundle = pGPFEN;
-    if (edgeFinalValue) {
-        // rising edge
-        bundle = pGPREN;
-    }
-
-    updateEntry(idx, bundle, enabled);
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-template <typename TFunc>
-void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::setHandler(
-    PinIdxType idx,
-    TFunc&& func)
-{
-    GASSERT(idx < NumOfLines);
-    static_assert(0 < MaxNumOfHandlers,
-        "Can't set handler when number of available spaces is zero");
-
-    auto node = allocHandlerSpace(idx);
-    node->handler_ = std::forward<TFunc>(func);
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-const Function::FuncSel Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::DirToFuncSel[Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::Dir_NumOfDirs] =
+const Function::FuncSel Gpio<TInterruptMgr, THandler>::DirToFuncSel[Gpio<TInterruptMgr, THandler>::Dir_NumOfDirs] =
 {
     Function::FuncSel::Input,
     Function::FuncSel::Output
 };
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-const volatile typename Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::SingleWordType*
-Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::idxToEntry(
-        Gpio::PinIdxType idx,
-        const WordsBundle* bundle)
-{
-    GASSERT(idx < Function::NumOfLines);
-    PinIdxType modifiedIdx = idx;
-    std::size_t entryIdx = 0;
-    while (BitsInSingleWord <= modifiedIdx) {
-        ++entryIdx;
-        modifiedIdx -= BitsInSingleWord;
-    }
-    GASSERT(entryIdx < NumOfWordsInBundle);
-    return &bundle->entries[entryIdx];
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-volatile typename Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::SingleWordType*
-Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::idxToEntry(
-    PinIdxType idx,
-    WordsBundle* bundle)
-{
-    return
-        const_cast<volatile SingleWordType*>(
-            idxToEntry(idx, static_cast<const WordsBundle*>(bundle)));
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-typename Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::SingleWordType
-Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::idxToEntryBitmask(
-    PinIdxType idx)
-{
-    GASSERT(idx < Function::NumOfLines);
-    Gpio::PinIdxType modifiedIdx = idx;
-    while (BitsInSingleWord <= modifiedIdx) {
-        modifiedIdx -= BitsInSingleWord;
-    }
-    return static_cast<SingleWordType>(1) << modifiedIdx;
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::updateEntry(
-    PinIdxType idx,
-    WordsBundle* bundle,
-    bool value)
-{
-    auto entry = idxToEntry(idx, bundle);
-    auto mask = idxToEntryBitmask(idx);
-    if (value) {
-        *entry |= mask;
-    }
-    else {
-        *entry &= ~mask;
-    }
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-typename Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::Node*
-Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::allocHandlerSpace(
-    PinIdxType idx)
-{
-    GASSERT(interruptHandlersCount_ < MaxNumOfHandlers);
-    auto beginIter = &interruptHandlers_[0];
-    auto endIter = &interruptHandlers_[interruptHandlersCount_];
-    auto iter = std::find_if(beginIter, endIter,
-        [idx](Node& node)
-        {
-            return (idx == node.pinIdx_);
-        });
-
-    if (iter == endIter) {
-        // Doesn't exist yet
-        ++interruptHandlersCount_;
-        iter->pinIdx_ = idx;
-    }
-    return iter;
-}
-
-template <typename TInterruptMgr,
-          std::size_t TMaxNumOfHandlers,
-          typename THandler>
-void Gpio<TInterruptMgr, TMaxNumOfHandlers, THandler>::interruptHandler()
-{
-    WordsBundle bundle = *pGPEDS;
-    *pGPEDS = bundle; // clear all the reported interrupts
-
-    auto endIter = &interruptHandlers_[interruptHandlersCount_];
-    for (auto iter = &interruptHandlers_[0]; iter != endIter; ++iter) {
-        auto* entry = idxToEntry(iter->pinIdx_, &bundle);
-        auto mask = idxToEntryBitmask(iter->pinIdx_);
-        if (((*entry & mask) != 0) && (iter->handler_)) {
-            iter->handler_(readPin(iter->pinIdx_));
-        }
-    }
-}
 
 }  // namespace device
 

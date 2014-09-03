@@ -29,10 +29,10 @@ class Led
 {
 public:
     typedef TGpio Gpio;
-    typedef typename Gpio::PinIdxType PinIdxType;
+    typedef typename Gpio::PinIdType PinIdType;
     static const bool OnState = TOnState;
 
-    Led(Gpio& gpio, PinIdxType pidIdx, bool isOn = false);
+    Led(Gpio& gpio, PinIdType pidIdx, bool isOn = false);
 
     void on();
     void off();
@@ -40,13 +40,13 @@ public:
 
 private:
     Gpio& gpio_;
-    PinIdxType pin_;
+    PinIdType pin_;
     bool isOn_;
 };
 
 // Implementation
 template <typename TGpio, bool TOnState>
-Led<TGpio, TOnState>::Led(Gpio& gpio, PinIdxType pin, bool isOn)
+Led<TGpio, TOnState>::Led(Gpio& gpio, PinIdType pin, bool isOn)
     : gpio_(gpio),
       pin_(pin),
       isOn_(isOn)

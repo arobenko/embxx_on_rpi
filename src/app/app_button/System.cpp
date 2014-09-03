@@ -30,9 +30,11 @@ System::System()
       buttonDriver_(gpio_, el_),
       uartDriver_(uart_, el_),
       timerMgr_(timerDevice_, el_),
-      uartSocket_(uartDriver_),
       led_(gpio_),
-      button_(buttonDriver_, ButtonPin)
+      button_(buttonDriver_, ButtonPin),
+      buf_(uartDriver_),
+      stream_(buf_),
+      log_("\r\n", stream_)
 {
 }
 

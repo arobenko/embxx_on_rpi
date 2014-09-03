@@ -54,17 +54,15 @@ private:
     Led& led_;
 };
 
-template <typename TTimer>
-void buttonPressed(System::EventLoop& el, TTimer& timer)
+void buttonPressed(System::TimerMgr::Timer& timer)
 {
     static_cast<void>(timer);
     auto& system = System::instance();
+    auto& el = system.eventLoop();
     auto& led = system.led();
-    auto& socket = system.uartSocket();
+    auto& log = system.log();
 
-    static const char Str[] = "Button Pressed\r\n";
-    static const std::size_t StrSize = sizeof(Str) - 1;
-    socket.asyncWrite(Str, StrSize);
+    SLOG(log, embxx::util::log::Info, "Button Pressed");
 
     timer.cancel();
     auto result = el.post(
@@ -90,11 +88,9 @@ void buttonPressed(System::EventLoop& el, TTimer& timer)
 void buttonReleased()
 {
     auto& system = System::instance();
-    auto& socket = system.uartSocket();
+    auto& log = system.log();
 
-    static const char Str[] = "Button Released\r\n";
-    static const std::size_t StrSize = sizeof(Str) - 1;
-    socket.asyncWrite(Str, StrSize);
+    SLOG(log, embxx::util::log::Info, "Button Released");
 }
 
 }  // namespace
@@ -102,30 +98,32 @@ void buttonReleased()
 int main() {
     auto& system = System::instance();
     auto& led = system.led();
-    auto& el = system.eventLoop();
 
     // Led on on assertion failure.
     embxx::util::EnableAssert<LedOnAssert> assertion(std::ref(led));
 
+    // Configure uart
     auto& uart = system.uart();
     uart.configBaud(9600);
     uart.setWriteEnabled(true);
 
+    // Allocate timer
     auto& timerMgr = system.timerMgr();
     auto timer = timerMgr.allocTimer();
     GASSERT(timer.isValid());
 
+    // Set handlers for button press / release
     auto& button = system.button();
     button.setPressedHandler(
         std::bind(
-            &buttonPressed<decltype(timer)>,
-            std::ref(el),
+            &buttonPressed,
             std::ref(timer)));
 
     button.setReleasedHandler(&buttonReleased);
 
+    // Run event loop with enabled interrupts
     device::interrupt::enable();
-
+    auto& el = system.eventLoop();
     el.run();
 
     GASSERT(0); // Mustn't exit
