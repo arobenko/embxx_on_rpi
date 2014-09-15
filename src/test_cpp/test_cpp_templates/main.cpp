@@ -34,6 +34,9 @@ int main(int argc, const char** argv)
     func(start1);
     func(start2);
 
+    SomeTemplateClass<int, 5>::func(500);
+    SomeTemplateClass<int, 10>::func(500);
+
     while (true) {};
     return 0;
 }
