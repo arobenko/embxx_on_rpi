@@ -28,7 +28,6 @@
 #include "embxx/util/ScopeGuard.h"
 #include "embxx/error/ErrorStatus.h"
 #include "embxx/device/context.h"
-#include "embxx/device/op_category.h"
 
 #include "Function.h"
 
@@ -44,7 +43,6 @@ public:
 
     typedef std::uint8_t CharType;
     typedef unsigned DeviceIdType;
-    typedef embxx::device::op_category::ParallelReadWrite OpCategory;
 
     static const DeviceIdType SupportedDeviceIdsCount = 3U;
 

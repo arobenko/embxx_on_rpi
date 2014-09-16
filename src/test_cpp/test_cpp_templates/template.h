@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 template <typename T>
 void func(T startValue)
 {
@@ -29,6 +31,18 @@ void func(T startValue)
     for (volatile T i = startValue; i < startValue * 2; i += 6) {}
 }
 
-
+template <typename T, std::size_t TDummy>
+struct SomeTemplateClass
+{
+    static void func(T startValue)
+    {
+        for (volatile T i = startValue; i < startValue * 2; i += 1) {}
+        for (volatile T i = startValue; i < startValue * 2; i += 2) {}
+        for (volatile T i = startValue; i < startValue * 2; i += 3) {}
+        for (volatile T i = startValue; i < startValue * 2; i += 4) {}
+        for (volatile T i = startValue; i < startValue * 2; i += 5) {}
+        for (volatile T i = startValue; i < startValue * 2; i += 6) {}
+    }
+};
 
 

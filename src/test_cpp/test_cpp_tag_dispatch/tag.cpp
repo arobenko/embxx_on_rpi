@@ -15,29 +15,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "template.h"
+#include "tag.h"
 
-// This function is required by common startup code
-extern "C"
-void interruptHandler()
+void Dispatcher::funcInternal(Tag1)
 {
 }
 
-int main(int argc, const char** argv)
+void Dispatcher::funcInternal(Tag2)
 {
-    static_cast<void>(argc);
-    static_cast<void>(argv);
-
-    int start1 = 100;
-    unsigned start2 = 200;
-
-    func(start1);
-    func(start2);
-
-    SomeTemplateClass<int, 5>::func(500);
-    SomeTemplateClass<int, 10>::func(500);
-
-    while (true) {};
-    return 0;
 }
+
+void Dispatcher::otherFuncTag1()
+{
+}
+
+void Dispatcher::otherFuncTag2()
+{
+}
+
 

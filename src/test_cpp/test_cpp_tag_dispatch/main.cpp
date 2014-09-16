@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "template.h"
+#include "tag.h"
 
 // This function is required by common startup code
 extern "C"
@@ -28,14 +28,10 @@ int main(int argc, const char** argv)
     static_cast<void>(argc);
     static_cast<void>(argv);
 
-    int start1 = 100;
-    unsigned start2 = 200;
-
-    func(start1);
-    func(start2);
-
-    SomeTemplateClass<int, 5>::func(500);
-    SomeTemplateClass<int, 10>::func(500);
+    Dispatcher::func<Tag1>();
+    Dispatcher::func<Tag2>();
+    Dispatcher::otherFunc<Tag1>();
+    Dispatcher::otherFunc<Tag2>();
 
     while (true) {};
     return 0;
