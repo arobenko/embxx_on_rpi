@@ -91,6 +91,15 @@ extern "C" int _isatty(int file)
 }
 
 // This stub function is required by stdlib
+extern "C" int _open(const char *name, int flags, int mode)
+{
+    static_cast<void>(name);
+    static_cast<void>(flags);
+    static_cast<void>(mode);
+    return -1;
+}
+
+// This stub function is required by stdlib
 extern "C" int _lseek(int file, int ptr, int dir)
 {
     static_cast<void>(file);
