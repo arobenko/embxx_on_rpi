@@ -15,7 +15,8 @@ endfunction ()
 # Make sure there are not "-D or -O" options
 set (CMAKE_BUILD_TYPE "Debug")
 embxx_add_asm_flags ("-march=armv6z")
-enable_language (ASM)
+enable_language (ASM)  ##  enable_language (ASM-ATT)
+                       ##   -> ASM-ATT would cause usage of arm-none-eabi-as instead of arm-none-eabi-gcc as assembler
+                       ##      https://cmake.org/pipermail/cmake/2011-August/045700.html
 
 lib_startup ()
-

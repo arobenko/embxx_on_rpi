@@ -12,13 +12,13 @@ function (link_app tgt)
         TARGET ${tgt}
         POST_BUILD
         COMMAND 
-            ${CROSS_COMPILE}objcopy $<TARGET_FILE:${tgt}> -O binary 
+            ${CMAKE_OBJCOPY} $<TARGET_FILE:${tgt}> -O binary 
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.img
         COMMAND 
-            ${CROSS_COMPILE}objdump -D -S $<TARGET_FILE:${tgt}> > 
+            ${CMAKE_OBJDUMP} -D -S $<TARGET_FILE:${tgt}> > 
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.list
         COMMAND 
-            ${CROSS_COMPILE}objdump -t $<TARGET_FILE:${tgt}> > 
+            ${CMAKE_OBJDUMP} -t $<TARGET_FILE:${tgt}> > 
                                         $<TARGET_FILE_DIR:${tgt}>/kernel.syms
         COMMAND 
             ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/image/${tgt}

@@ -30,14 +30,14 @@ How to compile
    
    It is also possible to provide a separate toolchain file instead of 
    specifying CROSS_COMPILE prefix.
-   > cmake -DCMAKE_BUILD_TYPE=Release -DCUSTOM_TOOLCHAIN=/path/to/toolchain/file ..
+   > cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain/file ..
    
-   The custom toolchain file is expected to set the following variables:
-   - CMAKE_C_COMPILER
-   - CMAKE_CXX_COMPILER
-   - CMAKE_ASM_COMPILER
-   - CMAKE_AR
-   - CMAKE_RANLIB
+   The custom toolchain file is expected to be similiar to this example:
+   
+       set (CMAKE_SYSTEM_NAME "Generic")
+       include(CMakeForceCompiler)
+       cmake_force_c_compiler(  arm-none-eabi-gcc)
+       cmake_force_cxx_compiler(arm-none-eabi-g++)
    
 3. Build the binaries:
    > make
