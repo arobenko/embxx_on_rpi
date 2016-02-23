@@ -14,12 +14,12 @@ include (AR_AllExtras)
 embxx_add_cpp11_support ()
 embxx_set_default_compiler_options ()
 
-set (CMAKE_SYSTEM_NAME "Generic")               ## possibly this needs to be in the else() branch below (?)
+set (CMAKE_SYSTEM_NAME "Generic")
 
-set(toolchain   ""      CACHE FILEPATH     "")  ## -Dtoolchain=/my/path/to/toolchain_file
-if (toolchain AND EXISTS ${toolchain})
-  message("==> Including toolchain_file ${toolchain}")
-  include(${toolchain})
+set(CUSTOM_TOOLCHAIN "" CACHE FILEPATH "Choose custom toolchain file")
+if (CUSTOM_TOOLCHAIN AND EXISTS ${CUSTOM_TOOLCHAIN})
+  message("==> Including CUSTOM_TOOLCHAIN_file ${CUSTOM_TOOLCHAIN}")
+  include(${CUSTOM_TOOLCHAIN})
 else()
 
   if ("${CROSS_COMPILE}" STREQUAL "")
