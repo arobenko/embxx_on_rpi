@@ -35,9 +35,15 @@ How to compile
    The custom toolchain file is expected to be similiar to this example:
 
        set (CMAKE_SYSTEM_NAME "Generic")
-       include(CMakeForceCompiler)
-       cmake_force_c_compiler(  arm-none-eabi-gcc)
-       cmake_force_cxx_compiler(arm-none-eabi-g++)
+       if (NOT    CMAKE_VERSION VERSION_LESS 3.5.0)
+         set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+         set(CMAKE_C_COMPILER   arm-none-eabi-gcc)
+         set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+       else()
+         include(CMakeForceCompiler)
+         cmake_force_c_compiler(  arm-none-eabi-gcc GNU)
+         cmake_force_cxx_compiler(arm-none-eabi-gcc GNU)
+       endif()
    
 3. Build the binaries:
    > make

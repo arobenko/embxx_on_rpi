@@ -12,9 +12,15 @@ else()
     set (CROSS_COMPILE "arm-none-eabi-")
   endif()
 
-  include(CMakeForceCompiler)
-  cmake_force_c_compiler(  "${CROSS_COMPILE}gcc" GNU)
-  cmake_force_cxx_compiler("${CROSS_COMPILE}g++" GNU)
+  if (NOT    CMAKE_VERSION VERSION_LESS 3.5.0)
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+    set(CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
+    set(CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+  else()
+    include(CMakeForceCompiler)
+    cmake_force_c_compiler(  "${CROSS_COMPILE}gcc" GNU)
+    cmake_force_cxx_compiler("${CROSS_COMPILE}g++" GNU)
+  endif()
 
 endif()
 

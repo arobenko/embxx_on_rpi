@@ -18,3 +18,4 @@ embxx_add_asm_flags ("-march=armv6z")
 enable_language (ASM)
 
 lib_startup ()
+
