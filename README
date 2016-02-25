@@ -33,7 +33,7 @@ How to compile
    > cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain/file ..
    
    The custom toolchain file is expected to be similiar to this example:
-   
+
        set (CMAKE_SYSTEM_NAME "Generic")
        include(CMakeForceCompiler)
        cmake_force_c_compiler(  arm-none-eabi-gcc)
