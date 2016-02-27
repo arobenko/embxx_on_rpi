@@ -46,10 +46,10 @@ private:
 
 // Implementation
 template <typename TGpio, bool TOnState>
-Led<TGpio, TOnState>::Led(Gpio& gpio, PinIdType pin, bool isOn)
+Led<TGpio, TOnState>::Led(Gpio& gpio, PinIdType pin, bool isOnVal)
     : gpio_(gpio),
       pin_(pin),
-      isOn_(isOn)
+      isOn_(isOnVal)
 {
     gpio_.configDir(pin, Gpio::Dir_Output);
 }
