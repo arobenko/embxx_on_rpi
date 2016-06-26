@@ -26,7 +26,26 @@ How to compile
    build type please use CMAKE_BUILD_TYPE definition when using cmake utility:
    > cmake -DCMAKE_BUILD_TYPE=Release -DCROSS_COMPILE=/opt/arm-none-eabi-2013.05/bin/arm-none-eabi- ..
    
-   Please refer to CMake documentation for details about its build types
+   Please refer to CMake documentation for details about its build types.
+   
+   It is also possible to provide a separate toolchain file instead of 
+   specifying CROSS_COMPILE prefix.
+   > cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain/file ..
+   
+   The custom toolchain file is expected to be similiar to this example:
+
+       set (CMAKE_SYSTEM_NAME "Generic")
+       include(CMakeForceCompiler)
+       cmake_force_c_compiler(arm-none-eabi-gcc)
+       cmake_force_cxx_compiler(arm-none-eabi-g++)
+
+   For CMake version 3.6 or newer it can look like this:
+   
+       set (CMAKE_SYSTEM_NAME "Generic")
+       set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+       set(CMAKE_C_COMPILER   arm-none-eabi-gcc)
+       set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+
 3. Build the binaries:
    > make
    
@@ -34,6 +53,7 @@ How to compile
    > VERBOSE=1 make
 4. The image of every compiled application will be:
    <embxx_build_dir>/image/<app_name>/kernel.img
+   
    
 Applications
 -------------------

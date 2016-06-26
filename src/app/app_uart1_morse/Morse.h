@@ -105,10 +105,10 @@ private:
                 if (*seq != End) {
                     timer_.asyncWait(
                         std::chrono::milliseconds(Duration(Spacing)),
-                        [this, seq](const embxx::error::ErrorStatus& es)
+                        [this, seq](const embxx::error::ErrorStatus& es2)
                         {
-                            static_cast<void>(es);
-                            GASSERT(!es);
+                            static_cast<void>(es2);
+                            GASSERT(!es2);
                             nextSyllable(seq);
                         });
                     return;
@@ -116,10 +116,10 @@ private:
 
                 timer_.asyncWait(
                     std::chrono::milliseconds(Duration(InterSpacing)),
-                    [this](const embxx::error::ErrorStatus& es)
+                    [this](const embxx::error::ErrorStatus& es3)
                     {
-                        static_cast<void>(es);
-                        GASSERT(!es);
+                        static_cast<void>(es3);
+                        GASSERT(!es3);
                         nextLetter();
                     });
             });
