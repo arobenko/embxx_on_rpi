@@ -2,6 +2,9 @@ cmake_minimum_required (VERSION 2.8)
 
 if (CMAKE_TOOLCHAIN_FILE AND EXISTS ${CMAKE_TOOLCHAIN_FILE})
     message("==> Loading \${CMAKE_TOOLCHAIN_FILE} == ${CMAKE_TOOLCHAIN_FILE}")
+    if(NOT DEFINED CMAKE_CROSSCOMPILING)
+        message(FATAL_ERROR "Toolchain file must define CMAKE_SYSTEM_NAME, typically: set (CMAKE_SYSTEM_NAME \"Generic\")")
+    endif()
 else()
 
     set (CMAKE_SYSTEM_NAME "Generic")
@@ -9,9 +12,15 @@ else()
         set (CROSS_COMPILE "arm-none-eabi-")
     endif()
 
-    include(CMakeForceCompiler)
-    cmake_force_c_compiler(  "${CROSS_COMPILE}gcc" GNU)
-    cmake_force_cxx_compiler("${CROSS_COMPILE}g++" GNU)
+    if (CMAKE_VERSION VERSION_LESS 3.6)
+        include(CMakeForceCompiler)
+        cmake_force_c_compiler(  "${CROSS_COMPILE}gcc" GNU)
+        cmake_force_cxx_compiler("${CROSS_COMPILE}g++" GNU)
+    else()
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+        set(CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
+        set(CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+    endif()
 
 endif()
 
