@@ -38,7 +38,14 @@ How to compile
        include(CMakeForceCompiler)
        cmake_force_c_compiler(arm-none-eabi-gcc)
        cmake_force_cxx_compiler(arm-none-eabi-g++)
+
+   For CMake version 3.6 or newer it can look like this:
    
+       set (CMAKE_SYSTEM_NAME "Generic")
+       set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+       set(CMAKE_C_COMPILER   arm-none-eabi-gcc)
+       set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+
 3. Build the binaries:
    > make
    
