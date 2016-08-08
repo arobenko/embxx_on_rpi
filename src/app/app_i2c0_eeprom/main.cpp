@@ -147,7 +147,7 @@ void readFunc(
     embxx::io::writeBig(address, bufIter);
 
     eeprom.asyncWrite(buf, sizeof(address),
-        [&eeprom, address, buf, bufSize, maxAddress](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
+        [&eeprom, address, buf, bufSize, maxAddress](const embxx::error::ErrorStatus& err, std::size_t bytesWritten)
         {
             auto& log = System::instance().log();
             if (err) {
@@ -158,28 +158,28 @@ void readFunc(
                 return;
             }
 
-            static_cast<void>(bytesTransferred);
-            GASSERT(bytesTransferred == sizeof(address));
+            static_cast<void>(bytesWritten);
+            GASSERT(bytesWritten == sizeof(address));
             std::size_t readCount = std::min(bufSize - sizeof(address), std::size_t(maxAddress - address));
 
             eeprom.asyncRead(&buf[sizeof(address)], readCount,
-                [&eeprom, address, buf, bufSize, maxAddress, readCount](const embxx::error::ErrorStatus& err, std::size_t bytesTransferred)
+                [&eeprom, address, buf, bufSize, maxAddress, readCount](const embxx::error::ErrorStatus& err2, std::size_t bytesRead)
                 {
-                    auto& log = System::instance().log();
+                    auto& log2 = System::instance().log();
 
-                    if (err) {
-                        SLOG(log, embxx::util::log::Error,
+                    if (err2) {
+                        SLOG(log2, embxx::util::log::Error,
                             "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                             eeprom.getDeviceId() << ") : Failed to read with error " <<
-                            err);
+                            err2);
                         return;
                     }
 
-                    static_cast<void>(bytesTransferred);
-                    GASSERT(bytesTransferred == readCount);
+                    static_cast<void>(bytesRead);
+                    GASSERT(bytesRead == readCount);
 
                     auto readBuf = &buf[sizeof(address)];
-                    SLOG(log, embxx::util::log::Info,
+                    SLOG(log2, embxx::util::log::Info,
                         "R (0x" << embxx::io::hex << embxx::io::setw(0) <<
                         eeprom.getDeviceId() << ") : [0x" <<
                         embxx::io::setfill('0') << embxx::io::setw(sizeof(address) * 2) <<
@@ -190,7 +190,7 @@ void readFunc(
                         embxx::io::setw(0) << embxx::io::dec << readCount << " bytes");
 
                     if (!verifySeqCorrect(&readBuf[0], readCount)) {
-                        SLOG(log, embxx::util::log::Error,
+                        SLOG(log2, embxx::util::log::Error,
                             "Read mismatch for 0x" << eeprom.getDeviceId() << "!!!");
                         return;
                     }

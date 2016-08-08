@@ -1,4 +1,31 @@
 cmake_minimum_required (VERSION 2.8)
+
+if (CMAKE_TOOLCHAIN_FILE AND EXISTS ${CMAKE_TOOLCHAIN_FILE})
+    message("==> Loading \${CMAKE_TOOLCHAIN_FILE} == ${CMAKE_TOOLCHAIN_FILE}")
+    if(NOT DEFINED CMAKE_CROSSCOMPILING)
+        message(FATAL_ERROR "Toolchain file must define CMAKE_SYSTEM_NAME, typically: set (CMAKE_SYSTEM_NAME \"Generic\")")
+    endif()
+else()
+
+    set (CMAKE_SYSTEM_NAME "Generic")
+    if ("${CROSS_COMPILE}" STREQUAL "")
+        set (CROSS_COMPILE "arm-none-eabi-")
+    endif()
+
+    if (CMAKE_VERSION VERSION_LESS 3.6)
+        include(CMakeForceCompiler)
+        cmake_force_c_compiler(  "${CROSS_COMPILE}gcc" GNU)
+        cmake_force_cxx_compiler("${CROSS_COMPILE}g++" GNU)
+    else()
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+        set(CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
+        set(CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+    endif()
+
+endif()
+
+#########
+
 project ("embxx_on_rpi")
 
 set (EXTERNALS_DIR "${CMAKE_SOURCE_DIR}/external")
@@ -14,15 +41,6 @@ include (AR_AllExtras)
 embxx_add_cpp11_support ()
 embxx_set_default_compiler_options ()
 
-set (CMAKE_SYSTEM_NAME "RPi")
-if ("${CROSS_COMPILE}" STREQUAL "")
-    set (CROSS_COMPILE "arm-none-eabi-")
-endif()
-
-set (CMAKE_C_COMPILER "${CROSS_COMPILE}gcc")
-set (CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
-set (CMAKE_ASM_COMPILER "${CROSS_COMPILE}as")
-
 # for libraries and headers in the target directories
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
@@ -36,3 +54,9 @@ set (STDLIB_STUB_LIB_NAME "stdlib_stub")
 
 add_subdirectory (src)
 
+message(STATUS "Found C compiler: ${CMAKE_C_COMPILER}")
+message(STATUS "Found C++ compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "Found ar: ${CMAKE_AR}")
+message(STATUS "Found ranlib: ${CMAKE_RANLIB}")
+message(STATUS "Found objcopy: ${CMAKE_OBJCOPY}")
+message(STATUS "Found objdump: ${CMAKE_OBJDUMP}")

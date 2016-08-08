@@ -78,21 +78,21 @@ public:
                 [this](){
                     WordsBundle bundle = *pGPEDS;
                     *pGPEDS = bundle; // clear all the reported interrupts
-                    for (PinIdType i = 0U; i < NumOfLines; ++i) {
-                        auto* entry = idxToEntry(i, &bundle);
-                        auto mask = idxToEntryBitmask(i);
+                    for (PinIdType id = 0U; id < NumOfLines; ++id) {
+                        auto* entry = idxToEntry(id, &bundle);
+                        auto mask = idxToEntryBitmask(id);
                         if ((*entry & mask) == 0) {
                             continue;
                         }
 
                         typedef typename EdgeConfigData::value_type EdgConfigValuetype;
-                        auto value = readPin(i);
+                        auto value = readPin(id);
                         auto edgeConfigMask =
-                            static_cast<EdgConfigValuetype>(1) << i;
+                            static_cast<EdgConfigValuetype>(1) << id;
                         GASSERT(handler_);
                         if (((value) && ((edgeConfig[Edge_Rising] & edgeConfigMask) != 0)) ||
                             ((!value) && ((edgeConfig[Edge_Falling] & edgeConfigMask) != 0))) {
-                            handler_(i, value);
+                            handler_(id, value);
                         }
                     }
                 });

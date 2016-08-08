@@ -42,18 +42,19 @@ struct SelWords
 
 volatile SelWords* const pSel = reinterpret_cast<SelWords*>(0x20200000);
 
-static_assert(&pSel->entries[0] == reinterpret_cast<volatile SingleSelWord*>(0x20200000),
-    "Select entry address is not as expected");
-static_assert(&pSel->entries[1] == reinterpret_cast<volatile SingleSelWord*>(0x20200004),
-    "Select entry address is not as expected");
-static_assert(&pSel->entries[2] == reinterpret_cast<volatile SingleSelWord*>(0x20200008),
-    "Select entry address is not as expected");
-static_assert(&pSel->entries[3] == reinterpret_cast<volatile SingleSelWord*>(0x2020000C),
-    "Select entry address is not as expected");
-static_assert(&pSel->entries[4] == reinterpret_cast<volatile SingleSelWord*>(0x20200010),
-    "Select entry address is not as expected");
-static_assert(&pSel->entries[5] == reinterpret_cast<volatile SingleSelWord*>(0x20200014),
-    "Select entry address is not as expected");
+static_assert(offsetof(SelWords, entries) == 0,
+     "Select entry address is not as expected");
+static_assert(offsetof(SelWords, entries[1]) == 4,
+     "Select entry address is not as expected");
+static_assert(offsetof(SelWords, entries[2]) == 8,
+     "Select entry address is not as expected");
+static_assert(offsetof(SelWords, entries[3]) == 12,
+     "Select entry address is not as expected");
+static_assert(offsetof(SelWords, entries[4]) == 16,
+     "Select entry address is not as expected");
+static_assert(offsetof(SelWords, entries[5]) == 20,
+     "Select entry address is not as expected");
+
 }  // namespace
 
 void Function::configure(PinIdxType idx, FuncSel sel)
